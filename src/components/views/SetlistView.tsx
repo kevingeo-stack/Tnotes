@@ -220,29 +220,29 @@ export function SetlistView({ onOpenNoteInEditor, notation }: SetlistViewProps) 
     const totalSongsInList = currentSetlist.songIds.length;
 
     return (
-      <div className="w-full mx-auto p-4 md:p-6 pb-32 max-w-5xl animate-in fade-in duration-150">
+      <div className="w-full mx-auto p-3 sm:p-5 pb-28 max-w-5xl animate-in fade-in duration-150">
         {/* Navigation & Header */}
-        <div className="flex flex-col gap-4 mb-8">
+        <div className="flex flex-col gap-3 mb-5">
           <div className="flex items-center justify-between">
             <button
               onClick={() => setSelectedSetlistId(null)}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold transition text-sm cursor-pointer active:scale-95"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold transition text-xs sm:text-sm cursor-pointer active:scale-95"
             >
-              <ArrowLeft size={18} />
+              <ArrowLeft size={16} />
               <span>Volver a Mis Listas</span>
             </button>
 
             <button
               onClick={() => setIsSongSelectorOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-md transition active:scale-95 cursor-pointer text-sm"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-md transition active:scale-95 cursor-pointer text-xs sm:text-sm"
             >
-              <Plus size={18} strokeWidth={2.5} />
+              <Plus size={16} strokeWidth={2.5} />
               <span>+ Añadir Canciones</span>
             </button>
           </div>
 
           {/* Editable Title Section */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {isEditingTitle ? (
               <div className="flex items-center gap-2 flex-1">
                 <input
@@ -252,18 +252,18 @@ export function SetlistView({ onOpenNoteInEditor, notation }: SetlistViewProps) 
                   onBlur={handleSaveTitle}
                   onKeyDown={e => e.key === 'Enter' && handleSaveTitle()}
                   autoFocus
-                  className="text-2xl sm:text-3xl font-extrabold bg-white dark:bg-[#28292A] border-2 border-amber-500 rounded-xl px-3 py-1 outline-none text-[#202124] dark:text-[#E8EAED] w-full"
+                  className="text-xl sm:text-2xl font-extrabold bg-white dark:bg-[#28292A] border-2 border-amber-500 rounded-xl px-3 py-1 outline-none text-[#202124] dark:text-[#E8EAED] w-full"
                 />
                 <button
                   onClick={handleSaveTitle}
-                  className="px-4 py-2 bg-amber-500 text-white rounded-xl font-bold text-sm"
+                  className="px-3 py-1.5 bg-amber-500 text-white rounded-xl font-bold text-xs sm:text-sm"
                 >
                   Guardar
                 </button>
               </div>
             ) : (
-              <div className="flex items-center gap-3 group">
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-[#202124] dark:text-[#E8EAED] tracking-tight">
+              <div className="flex items-center gap-2 group">
+                <h1 className="text-xl sm:text-2xl font-extrabold text-[#202124] dark:text-[#E8EAED] tracking-tight">
                   {currentSetlist.name}
                 </h1>
                 <button
@@ -307,81 +307,68 @@ export function SetlistView({ onOpenNoteInEditor, notation }: SetlistViewProps) 
             </button>
           </div>
         ) : (
-          /* AGRUPACIÓN TONAL ESTRICTA: Cabecera única por tono con canciones debajo */
-          <div className="space-y-10">
+          /* AGRUPACIÓN TONAL ESTRICTA: Cabecera compacta por tono con notas ampliadas para atril */
+          <div className="space-y-4">
             {tonalGroups.map(group => (
-              <section key={group.rawKey} className="space-y-4">
-                {/* Banner / Título de Tono Único de Alto Contraste */}
-                <div className="rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 dark:from-amber-600 dark:to-amber-700 text-white p-3.5 sm:p-4 shadow-md flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl sm:text-2xl">🎵</span>
-                    <span className="font-mono font-black text-lg sm:text-2xl tracking-wide uppercase">
-                      TONO: {group.formattedKey}
-                    </span>
-                  </div>
-                  <span className="text-xs sm:text-sm font-bold bg-white/20 px-3 py-1 rounded-full backdrop-blur-xs">
-                    {group.songs.length} {group.songs.length === 1 ? 'canción' : 'canciones'}
-                  </span>
+              <section key={group.rawKey}>
+                {/* 1. Cabecera de Tono Compacta (Una sola por grupo) */}
+                <div className="text-xs font-bold tracking-wider uppercase text-neutral-500 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800/60 px-3 py-1.5 rounded-md mb-2 flex items-center justify-between">
+                  <span>TONO: {group.formattedKey}</span>
+                  <span className="font-normal opacity-75">{group.songs.length} {group.songs.length === 1 ? 'canción' : 'canciones'}</span>
                 </div>
 
-                <div className="border-t-2 border-amber-500/30 -mt-2"></div>
-
                 {/* Bloque de Canciones bajo esa Tonalidad */}
-                <div className="space-y-4 pt-1">
+                <div className="space-y-2.5">
                   {group.songs.map(({ song, overallIndex }) => (
                     <div
                       key={song.id}
-                      className="group bg-white dark:bg-[#28292A] rounded-2xl border border-gray-200 dark:border-gray-700/80 p-4 sm:p-5 shadow-xs hover:shadow-md transition flex flex-col gap-3"
+                      className="bg-white dark:bg-[#28292A] rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 sm:p-4 shadow-xs transition flex flex-col"
                     >
-                      {/* Song Title Row */}
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 font-extrabold text-sm flex items-center justify-center shrink-0 border border-amber-200 dark:border-amber-800">
-                            {overallIndex}
+                      {/* 2. Nombre de la Canción (Compacto, semibold mediano) */}
+                      <div className="flex items-center justify-between gap-2 text-sm md:text-base text-neutral-700 dark:text-neutral-300 mb-1">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-bold text-neutral-400 dark:text-neutral-500 shrink-0">
+                            {overallIndex}.
                           </span>
-                          <h3 className="font-bold text-lg sm:text-xl text-gray-900 dark:text-gray-100 truncate">
+                          <h3 className="font-semibold truncate text-neutral-800 dark:text-neutral-200">
                             {song.title || 'Sin título'}
                           </h3>
                           {song.activeInstrument === 'trumpet' ? (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 shrink-0">
-                              🎺 Trompeta Sib
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 shrink-0">
+                              🎺 Sib
                             </span>
                           ) : (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 shrink-0">
-                              🎹 Teclado Concert
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400 shrink-0">
+                              🎹 Teclado
                             </span>
                           )}
                         </div>
 
-                        {/* Actions */}
+                        {/* Acciones discretas */}
                         <div className="flex items-center gap-1 shrink-0">
                           {onOpenNoteInEditor && (
                             <button
                               onClick={() => onOpenNoteInEditor(song)}
-                              className="p-2 rounded-xl text-gray-500 hover:text-amber-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer"
+                              className="p-1 rounded-md text-neutral-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer"
                               title="Abrir en editor de notas"
                             >
-                              <Edit3 size={16} />
+                              <Edit3 size={15} />
                             </button>
                           )}
                           <button
                             onClick={() => handleRemoveSongFromSetlist(song.id)}
-                            className="p-2 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition cursor-pointer"
+                            className="p-1 rounded-md text-neutral-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition cursor-pointer"
                             title="Quitar de esta lista"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={15} />
                           </button>
                         </div>
                       </div>
 
-                      {/* Cuerpo de Notas (Renderizado monoespaciado legible) */}
-                      <div className="bg-gray-50 dark:bg-[#1E1E1E] rounded-xl p-3.5 sm:p-4 border border-gray-200/70 dark:border-gray-800">
-                        <div className="text-[11px] font-extrabold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1.5 flex items-center gap-1.5">
-                          <span>🎼</span>
-                          <span>Notas y Acordes:</span>
-                        </div>
-                        <pre className="font-mono text-sm sm:text-base leading-relaxed whitespace-pre-wrap select-none text-gray-900 dark:text-gray-100 font-medium">
-                          {song.content || '(Esta canción no tiene notas guardadas aún)'}
+                      {/* NOTAS MUSICALES (Elemento Dominante de la Pantalla) */}
+                      <div className="mt-1">
+                        <pre className="text-xl md:text-2xl font-mono font-bold tracking-wide leading-relaxed text-amber-600 dark:text-amber-400 whitespace-pre-wrap select-none break-words">
+                          {song.content || '(Sin notas)'}
                         </pre>
                       </div>
                     </div>

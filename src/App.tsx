@@ -6,7 +6,7 @@ import { TonalGroupingView } from './components/views/TonalGroupingView';
 import { PitchSpaceView } from './components/views/PitchSpaceView';
 import { SetlistView } from './components/views/SetlistView';
 import { SongNote } from './types/note';
-import { NoteStorageService } from './services/storage/NoteStorageService';
+import { NoteStorageService, sanitizeLegacyNotes } from './services/storage/NoteStorageService';
 import { NotationSystem } from './domain/music/NotationSystem';
 
 function generateId() {
@@ -30,18 +30,38 @@ export default function App() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-      setIsDarkMode(true);
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+    try {
+      sanitizeLegacyNotes();
+    } catch (e) {
+      console.warn('Sanitize legacy notes warning', e);
     }
 
-    const savedNotation = localStorage.getItem('notation') as NotationSystem;
-    if (savedNotation === 'en' || savedNotation === 'natural') {
-      setNotation(savedNotation);
+    try {
+      const savedTheme = typeof window !== 'undefined' && window.localStorage ? localStorage.getItem('theme') : null;
+      let prefersDark = false;
+      if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+        prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      }
+      if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+        setIsDarkMode(true);
+        document.documentElement.classList.add('dark');
+      } else {
+        setIsDarkMode(false);
+        document.documentElement.classList.remove('dark');
+      }
+    } catch (e) {
+      console.warn('Theme initialization fallback', e);
+    }
+
+    try {
+      const savedNotation = typeof window !== 'undefined' && window.localStorage
+        ? (localStorage.getItem('notation') as NotationSystem)
+        : null;
+      if (savedNotation === 'en' || savedNotation === 'natural') {
+        setNotation(savedNotation);
+      }
+    } catch (e) {
+      console.warn('Notation initialization fallback', e);
     }
   }, []);
 
@@ -50,10 +70,10 @@ export default function App() {
       const next = !prev;
       if (next) {
         document.documentElement.classList.add('dark');
-        localStorage.setItem('theme', 'dark');
+        try { localStorage.setItem('theme', 'dark'); } catch {}
       } else {
         document.documentElement.classList.remove('dark');
-        localStorage.setItem('theme', 'light');
+        try { localStorage.setItem('theme', 'light'); } catch {}
       }
       return next;
     });
@@ -62,7 +82,7 @@ export default function App() {
   const toggleNotation = useCallback(() => {
     setNotation(prev => {
       const next = prev === 'en' ? 'natural' : 'en';
-      localStorage.setItem('notation', next);
+      try { localStorage.setItem('notation', next); } catch {}
       return next;
     });
   }, []);

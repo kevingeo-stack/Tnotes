@@ -5,17 +5,36 @@ export type { Setlist };
 const SETLISTS_STORAGE_KEY = 'trumpet_setlists_data_v1';
 const LEGACY_SETLIST_KEY = 'tnotes_setlist_v1';
 
+const getStorage = (): Storage | null => {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage;
+    }
+    if (typeof globalThis !== 'undefined' && (globalThis as any).localStorage) {
+      return (globalThis as any).localStorage;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
 export const SetlistStorageService = {
   getAll(): Setlist[] {
     try {
-      const data = localStorage.getItem(SETLISTS_STORAGE_KEY);
+      const storage = getStorage();
+      if (!storage) return [];
+
+      const data = storage.getItem(SETLISTS_STORAGE_KEY);
       if (data) {
-        const parsed = JSON.parse(data) as Setlist[];
-        return parsed.sort((a, b) => b.updatedAt - a.updatedAt);
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed)) {
+          return (parsed as Setlist[]).sort((a, b) => b.updatedAt - a.updatedAt);
+        }
       }
 
       // Check if legacy single-setlist exists to auto-migrate into first list
-      const legacyRaw = localStorage.getItem(LEGACY_SETLIST_KEY);
+      const legacyRaw = storage.getItem(LEGACY_SETLIST_KEY);
       if (legacyRaw) {
         try {
           const legacyItems = JSON.parse(legacyRaw) as { noteId: string; order: number }[];
@@ -36,18 +55,26 @@ export const SetlistStorageService = {
 
       return [];
     } catch (e) {
-      console.error('Failed to load setlists from storage', e);
+      console.warn('Storage read error for setlists on mobile device, using empty fallback', e);
       return [];
     }
   },
 
   getById(id: string): Setlist | undefined {
-    const all = this.getAll();
-    return all.find(s => s.id === id);
+    try {
+      const all = this.getAll();
+      return all.find(s => s.id === id);
+    } catch (e) {
+      console.warn('Error finding setlist by id on mobile device', e);
+      return undefined;
+    }
   },
 
   save(setlist: Setlist): void {
     try {
+      const storage = getStorage();
+      if (!storage) return;
+
       const all = this.getAll();
       const existingIndex = all.findIndex(s => s.id === setlist.id);
       
@@ -63,18 +90,21 @@ export const SetlistStorageService = {
       }
 
       all.sort((a, b) => b.updatedAt - a.updatedAt);
-      localStorage.setItem(SETLISTS_STORAGE_KEY, JSON.stringify(all));
+      storage.setItem(SETLISTS_STORAGE_KEY, JSON.stringify(all));
     } catch (e) {
-      console.error('Failed to save setlist to storage', e);
+      console.warn('Failed to save setlist to storage on mobile device', e);
     }
   },
 
   delete(id: string): void {
     try {
+      const storage = getStorage();
+      if (!storage) return;
+
       const all = this.getAll().filter(s => s.id !== id);
-      localStorage.setItem(SETLISTS_STORAGE_KEY, JSON.stringify(all));
+      storage.setItem(SETLISTS_STORAGE_KEY, JSON.stringify(all));
     } catch (e) {
-      console.error('Failed to delete setlist from storage', e);
+      console.warn('Failed to delete setlist from storage on mobile device', e);
     }
   }
 };

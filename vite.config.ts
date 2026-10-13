@@ -5,11 +5,16 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    base: './', // CRÍTICO: Permite que los scripts y CSS carguen correctamente en GitHub Pages y móviles
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
       },
+    },
+    build: {
+      outDir: 'dist',
+      assetsDir: 'assets',
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { transposeText, transposeKeyName } from '../TranspositionEngine';
 import { formatDualKeyDisplay } from '../NotationSystem';
-import { NoteStorageService, getAllNotes } from '../../../services/storage/NoteStorageService';
+import { NoteStorageService, getAllNotes, sanitizeLegacyNotes } from '../../../services/storage/NoteStorageService';
 import { SetlistStorageService } from '../../../services/storage/SetlistStorageService';
 import { SongNote, Setlist } from '../../../types/note';
 
@@ -60,7 +60,26 @@ describe('Setlist & Persistent Transposition State', () => {
   });
 
   describe('Legacy Notes Automatic Migration', () => {
-    it('automatically migrates legacy notes lacking activeInstrument into keyboard mode', () => {
+    it('executes sanitizeLegacyNotes and repairs notes missing activeInstrument', () => {
+      const rawLegacy = JSON.stringify([
+        {
+          id: 'old-note',
+          title: 'Canción Antigua',
+          content: 'F G A',
+          detectedKey: 'F Mayor',
+          updatedAt: 1500000000000
+        }
+      ]);
+      localStorageMock.setItem('trumpet_notes_data', rawLegacy);
+
+      sanitizeLegacyNotes();
+
+      const repaired = JSON.parse(localStorageMock.getItem('trumpet_notes_data') || '[]');
+      expect(repaired.length).toBe(1);
+      expect(repaired[0].activeInstrument).toBe('keyboard');
+    });
+
+    it('automatically migrates legacy notes lacking activeInstrument into keyboard mode on getAllNotes', () => {
       // Simulate raw legacy data without activeInstrument in trumpet_notes_data
       const legacyRaw = JSON.stringify([
         {
