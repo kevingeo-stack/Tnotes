@@ -69,9 +69,34 @@ export const sanitizeLegacyNotes = (): void => {
   }
 };
 
+/**
+ * Sanitizes and purges residual notes whose content and title are empty.
+ */
+export const sanitizeEmptyNotes = (): void => {
+  const storage = getStorage();
+  if (!storage) return;
+  const raw = storage.getItem(PRIMARY_STORAGE_KEY) || storage.getItem(LEGACY_STORAGE_KEY);
+  if (!raw) return;
+  try {
+    const notes: SongNote[] = JSON.parse(raw);
+    if (!Array.isArray(notes)) return;
+    const cleaned = notes.filter(n => 
+      (n.content && n.content.trim() !== '') || 
+      (n.title && n.title.trim() !== '' && n.title !== 'Canción sin título')
+    );
+    if (cleaned.length !== notes.length) {
+      storage.setItem(PRIMARY_STORAGE_KEY, JSON.stringify(cleaned));
+      storage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(cleaned));
+    }
+  } catch (e) {
+    console.warn("Error sanitizing empty notes", e);
+  }
+};
+
 // Auto-execute immediately on module load in browser/runtime environments
 try {
   sanitizeLegacyNotes();
+  sanitizeEmptyNotes();
 } catch {
   // Ignore in environments where storage is restricted
 }
@@ -79,6 +104,7 @@ try {
 export const getAllNotes = (): SongNote[] => {
   try {
     sanitizeLegacyNotes();
+    sanitizeEmptyNotes();
     const storage = getStorage();
     const raw = storage
       ? (storage.getItem(PRIMARY_STORAGE_KEY) || storage.getItem(LEGACY_STORAGE_KEY))

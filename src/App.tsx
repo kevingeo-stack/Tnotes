@@ -6,7 +6,7 @@ import { TonalGroupingView } from './components/views/TonalGroupingView';
 import { PitchSpaceView } from './components/views/PitchSpaceView';
 import { SetlistView } from './components/views/SetlistView';
 import { SongNote } from './types/note';
-import { NoteStorageService, sanitizeLegacyNotes } from './services/storage/NoteStorageService';
+import { NoteStorageService, sanitizeLegacyNotes, sanitizeEmptyNotes } from './services/storage/NoteStorageService';
 import { NotationSystem } from './domain/music/NotationSystem';
 
 function generateId() {
@@ -32,8 +32,9 @@ export default function App() {
   useEffect(() => {
     try {
       sanitizeLegacyNotes();
+      sanitizeEmptyNotes();
     } catch (e) {
-      console.warn('Sanitize legacy notes warning', e);
+      console.warn('Sanitize notes warning', e);
     }
 
     try {

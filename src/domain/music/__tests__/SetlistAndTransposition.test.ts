@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { transposeText, transposeKeyName } from '../TranspositionEngine';
 import { formatDualKeyDisplay } from '../NotationSystem';
-import { NoteStorageService, getAllNotes, sanitizeLegacyNotes } from '../../../services/storage/NoteStorageService';
+import { NoteStorageService, getAllNotes, sanitizeLegacyNotes, sanitizeEmptyNotes } from '../../../services/storage/NoteStorageService';
 import { SetlistStorageService } from '../../../services/storage/SetlistStorageService';
 import { SongNote, Setlist } from '../../../types/note';
 
@@ -101,6 +101,22 @@ describe('Setlist & Persistent Transposition State', () => {
       // Verify that migrated notes were re-saved into storage with activeInstrument
       const savedInStorage = JSON.parse(localStorageMock.getItem('trumpet_notes_data') || '[]');
       expect(savedInStorage[0].activeInstrument).toBe('keyboard');
+    });
+
+    it('purges empty notes with no content and empty title via sanitizeEmptyNotes', () => {
+      const mixedNotes = [
+        { id: 'valid-1', title: 'Canción 1', content: 'C D E', activeInstrument: 'keyboard', detectedKey: 'C', updatedAt: Date.now() },
+        { id: 'empty-1', title: '', content: '', activeInstrument: 'keyboard', detectedKey: 'Indeterminada', updatedAt: Date.now() },
+        { id: 'empty-2', title: 'Canción sin título', content: '   ', activeInstrument: 'keyboard', detectedKey: 'Indeterminada', updatedAt: Date.now() },
+        { id: 'valid-2', title: 'Sólo acordes', content: 'Am G F E', activeInstrument: 'trumpet', detectedKey: 'Am', updatedAt: Date.now() }
+      ];
+      localStorageMock.setItem('trumpet_notes_data', JSON.stringify(mixedNotes));
+
+      sanitizeEmptyNotes();
+
+      const remaining = JSON.parse(localStorageMock.getItem('trumpet_notes_data') || '[]');
+      expect(remaining.length).toBe(2);
+      expect(remaining.map((r: any) => r.id)).toEqual(['valid-1', 'valid-2']);
     });
   });
 

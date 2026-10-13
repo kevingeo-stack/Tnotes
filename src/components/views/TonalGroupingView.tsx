@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Trash2 } from 'lucide-react';
 import { SongNote } from '../../types/note';
 import { NoteStorageService } from '../../services/storage/NoteStorageService';
 import { formatKeyName, NotationSystem } from '../../domain/music/NotationSystem';
@@ -37,35 +38,38 @@ export function TonalGroupingView({ onSelectNote, onDeleteNote, notation }: Tona
                   onClick={() => onSelectNote(note)}
                 >
                   <div className="flex items-center justify-between gap-2 mb-2">
-                    <h3 className="font-bold text-lg text-[#202124] dark:text-[#E8EAED] truncate">
+                    <h3 className="font-bold text-lg text-[#202124] dark:text-[#E8EAED] truncate flex-1">
                       {note.title || 'Sin título'}
                     </h3>
-                    {note.activeInstrument === 'trumpet' ? (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 shrink-0">
-                        🎺 Trompeta
-                      </span>
-                    ) : (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 shrink-0">
-                        🎹 Teclado
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {note.activeInstrument === 'trumpet' ? (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400">
+                          🎺 Trompeta
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400">
+                          🎹 Teclado
+                        </span>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm('¿Eliminar esta canción?')) {
+                            onDeleteNote(note.id);
+                          }
+                        }}
+                        className="p-1.5 text-neutral-400 hover:text-red-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition cursor-pointer"
+                        title="Eliminar canción"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                   <p className="text-gray-500 dark:text-gray-400 text-sm flex-1 overflow-hidden font-mono whitespace-pre-wrap">
                     {note.content}
                   </p>
                   <div className="mt-3 text-xs text-gray-400 dark:text-gray-500 flex justify-between items-center">
                     <span>{new Date(note.updatedAt).toLocaleDateString()}</span>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if(window.confirm('¿Borrar nota?')) {
-                          onDeleteNote(note.id);
-                        }
-                      }}
-                      className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition cursor-pointer"
-                    >
-                      Borrar
-                    </button>
                   </div>
                 </div>
               ))}

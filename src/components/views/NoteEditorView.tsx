@@ -56,7 +56,13 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
       updatedAt: Date.now()
     };
     onNoteChange(updated);
-    NoteStorageService.save(updated);
+
+    const isTitleEmpty = !newTitle || newTitle.trim() === '';
+    const isContentEmpty = !newContent || newContent.trim() === '';
+    // Only persist while typing if there is actual content or title
+    if (!isTitleEmpty || !isContentEmpty) {
+      NoteStorageService.save(updated);
+    }
   };
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,6 +87,19 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
   };
 
   const handleSaveAndExit = () => {
+    const isTitleEmpty = !title || title.trim() === '';
+    const isContentEmpty = !content || content.trim() === '';
+
+    if (isTitleEmpty && isContentEmpty) {
+      // Si el usuario entró a la nota pero NO escribió nada:
+      // NO guardarla. Si existía una nota previa con este ID que ahora quedó vacía, eliminarla.
+      if (note?.id) {
+        NoteStorageService.delete(note.id);
+      }
+      onSaveAndExit();
+      return;
+    }
+
     let finalTitle = title.trim();
     if (!finalTitle) {
       const firstLine = content.split('\n')[0].trim();
@@ -92,17 +111,17 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
       : content;
     const detectedKey = detectKey(concertContent);
 
-    const updated: SongNote = {
-      ...note,
+    const noteToSave: SongNote = {
+      id: note?.id || Date.now().toString(),
       title: finalTitle,
       content: content,
-      activeInstrument: activeInstrument,
+      activeInstrument: activeInstrument || 'keyboard',
       detectedKey: detectedKey,
       updatedAt: Date.now()
     };
 
-    onNoteChange(updated);
-    NoteStorageService.save(updated);
+    NoteStorageService.save(noteToSave);
+    onNoteChange(noteToSave);
     onSaveAndExit();
   };
 
