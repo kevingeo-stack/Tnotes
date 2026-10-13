@@ -1,0 +1,27 @@
+{
+  "id": "/",
+  "name": "TrumpetNotes",
+  "short_name": "TrumpetNotes",
+  "description": "Focused manuscript notebook, music theory, and transposition engine for trumpet players and brass musicians.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#c5a059",
+  "background_color": "#fbf9f5",
+  "categories": ["music", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

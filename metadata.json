@@ -1,0 +1,6 @@
+{
+  "name": "TrumpetNotes",
+  "description": "Focused manuscript notebook, music theory, and transposition engine for trumpet players and brass musicians.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,78 @@
+import React, { useMemo } from 'react';
+import { SongNote } from '../../types/note';
+import { NoteStorageService } from '../../services/storage/NoteStorageService';
+import { formatKeyName, NotationSystem } from '../../domain/music/NotationSystem';
+
+interface TonalGroupingViewProps {
+  onSelectNote: (note: SongNote) => void;
+  onDeleteNote: (id: string) => void;
+  notation: NotationSystem;
+}
+
+export function TonalGroupingView({ onSelectNote, onDeleteNote, notation }: TonalGroupingViewProps) {
+  const groupedNotes = useMemo(() => NoteStorageService.groupByKey(), []);
+
+  return (
+    <div className="w-full mx-auto p-4 md:p-6 pb-32">
+      <h1 className="text-3xl font-bold text-[#202124] dark:text-[#E8EAED] mb-8">Tonalidades</h1>
+      
+      {Object.keys(groupedNotes).length === 0 && (
+        <div className="text-gray-500 dark:text-gray-400 text-center py-12">
+          No hay notas guardadas aún. Toca el botón + para crear una.
+        </div>
+      )}
+
+      {Object.entries(groupedNotes).sort((a, b) => a[0].localeCompare(b[0])).map(([rawKey, notes]) => {
+        const displayKey = formatKeyName(rawKey, notation);
+        return (
+          <div key={rawKey} className="mb-10">
+            <h2 className="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-2 flex items-baseline gap-2">
+              Tono {displayKey} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({notes.length} {notes.length === 1 ? 'canción' : 'canciones'})</span>
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+              {notes.map(note => (
+                <div 
+                  key={note.id} 
+                  className="group relative bg-white dark:bg-[#28292A] p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md cursor-pointer transition flex flex-col h-40"
+                  onClick={() => onSelectNote(note)}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <h3 className="font-bold text-lg text-[#202124] dark:text-[#E8EAED] truncate">
+                      {note.title || 'Sin título'}
+                    </h3>
+                    {note.activeInstrument === 'trumpet' ? (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 shrink-0">
+                        🎺 Trompeta
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 shrink-0">
+                        🎹 Teclado
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm flex-1 overflow-hidden font-mono whitespace-pre-wrap">
+                    {note.content}
+                  </p>
+                  <div className="mt-3 text-xs text-gray-400 dark:text-gray-500 flex justify-between items-center">
+                    <span>{new Date(note.updatedAt).toLocaleDateString()}</span>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if(window.confirm('¿Borrar nota?')) {
+                          onDeleteNote(note.id);
+                        }
+                      }}
+                      className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition cursor-pointer"
+                    >
+                      Borrar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

@@ -1,0 +1,15 @@
+# manifest.md
+# Product Requirements Document (PRD) - TrumpetNotes PWA
+
+## 1. Executive Summary & Purpose
+TrumpetNotes es una Progressive Web App (PWA) móvil diseñada con la estética minimalista y limpia de una libreta de notas tradicional, orientada a trompetistas (instrumentos transpositores en Sib / Bb). Permite registrar ideas musicales en texto plano (cifrado latino o anglosajón), detectando automáticamente la armadura/tonalidad de la trompeta y calculando en tiempo real su equivalente en tono de concierto (tono real / piano / Do, un tono entero abajo).
+
+## 2. Core Business Logic & Goals
+- **Entrada Flexible:** Parser de texto que procesa notas musicales en notación latina (Do, Re, Mi...) y notación anglosajona (C, D, E...) con alteraciones (#, b, sostenido, bemol).
+- **Inferencia de Tonalidad:** Motor analítico basado en conteo de alturas y armaduras modales/escalares para deducir el centro tonal más probable.
+- **Transposición Inmediata Bb -> C (Concierto):** Mapeo cromático exacto (2 semitonos descendentes / 1 tono entero abajo) para visualizar la partitura en tono de concierto y tono de trompeta simultáneamente o mediante un toggle.
+- **Metrónomo y Afinador de Referencia Integrados:** Herramientas utilitarias embebidas en el encabezado de la nota sin recargar la interfaz.
+- **Enfoque Offline-First:** Persistencia completa en IndexedDB respaldada con Firestore SDK en modo offline persistente para sincronización bidireccional automática.
+
+## 3. Scope & Target Users
+- Músicos trompetistas, arreglistas y estudiantes de metales que requieren documentar líneas melódicas al vuelo sin recurrir a editores de partituras pesados.

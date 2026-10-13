@@ -1,0 +1,28 @@
+# .cursorrules
+# Coding Standards and Architectural Constraints - TrumpetNotes
+
+## 1. Fundamental Paradigms
+- Enforce strict Object-Oriented Programming (OOP): encapsulation, typed interfaces, inheritance, single responsibility (SRP), and design patterns (Factory, Strategy, Observer).
+- All business logic (parsing, music theory, transposition) MUST reside within dedicated domain classes, separated from UI components.
+- Do NOT use third-party backend orchestration (no n8n, no Docker). Exclusively use Firebase Web SDK v10+ with Cloud Firestore and Firebase Auth.
+
+## 2. PWA & Offline-First Constraints
+- Strictly require service worker registration (`sw.js`) with Cache-First for static assets and Network-First/Stale-While-Revalidate for user profile requests.
+- Firestore MUST be initialized with `enableIndexedDbPersistence()` (or `initializeFirestore` with `persistentLocalCache`).
+- All critical user data MUST be readable and writable completely offline.
+
+## 3. Firestore Path Rules
+- CRITICAL: Firestore references MUST ALWAYS have an even number of path segments (`collection/document`).
+  - Example: `users/{userId}/notes/{noteId}`.
+  - Never construct dangling collection references for document reads/writes.
+- Implement strictly validated Firestore Security Rules.
+
+## 4. Code Organization & State Management
+- `/src/domain/music/`: Pure OOP domain classes (`Note`, `PitchClass`, `Transposer`, `KeyDetector`, `ScaleEngine`).
+- `/src/domain/notes/`: Domain models (`SongNote`, `Folder`, `AudioNoteMetadata`).
+- `/src/services/firebase/`: Encapsulated repository classes (`FirestoreService`, `AuthService`).
+- `/src/services/storage/`: PWA cache controllers and IndexedDB synchronizers.
+- State management must follow the Observer/Store pattern using standard TypeScript classes.
+
+## 5. Refactoring Protocol
+- When refactoring, you MUST respect the current app structure dictated in the `.cursorrules`. Never break OOP inheritance or offline mechanisms.
