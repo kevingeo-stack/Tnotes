@@ -1,4 +1,3 @@
-// Tabla de clases de tono cromáticas (0 a 11)
 const PITCH_INDEX: Record<string, number> = {
   'C': 0, 'B#': 0,
   'C#': 1, 'DB': 1,
@@ -22,39 +21,41 @@ const PITCH_INDEX: Record<string, number> = {
   'SI': 11
 };
 
-const ROOT_NAMES_EN = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+const ROOT_NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
 
-// Perfiles tonales relativos a la tónica (índice 0 a 11)
-// Perfil Mayor con penalización estricta para notas ajenas (b3, b6, b7)
-const MAJOR_PROFILE = [
-  6.35,  // 0: Tónica
- -2.50,  // 1: b2 (ajena)
-  3.48,  // 2: 2da mayor
- -3.00,  // 3: 3ra menor (fuerte penalización en mayor)
-  4.38,  // 4: 3ra mayor (definitoria de modo mayor)
-  4.09,  // 5: 4ta justa
- -2.50,  // 6: Tritono
-  5.19,  // 7: 5ta justa
- -2.50,  // 8: b6 (ajena en mayor)
-  3.66,  // 9: 6ta mayor
- -1.80,  // 10: 7ma menor
-  4.20   // 11: 7ma mayor (sensible)
+// Ponderación armónica por intervalo respecto a la tónica (0 a 11)
+// MODO MAYOR: Las notas ajenas (b2, 3ra menor, b6) reciben penalización destructiva
+const MAJOR_WEIGHTS = [
+   6.0,  // 0: Tónica
+ -12.0,  // 1: b2 (ajena)
+   2.5,  // 2: 2da mayor
+ -15.0,  // 3: 3ra menor (incompatible con Mayor)
+   4.5,  // 4: 3ra mayor (definitoria de modo mayor)
+   3.0,  // 5: 4ta justa
+  -8.0,  // 6: Tritono
+   4.5,  // 7: 5ta justa
+ -12.0,  // 8: b6 (ajena en mayor)
+   2.5,  // 9: 6ta mayor
+  -5.0,  // 10: b7
+   3.0   // 11: 7ma mayor (sensible)
 ];
 
-// Perfil Menor universal: integra Menor Natural, Menor Armónica (sensible 11) y Dórica (9)
-const MINOR_PROFILE = [
-  6.33,  // 0: Tónica
- -2.00,  // 1: b2
-  3.48,  // 2: 2da mayor
-  5.38,  // 3: 3ra menor (definitoria de modo menor)
- -3.50,  // 4: 3ra mayor (fuerte penalización en menor)
-  3.53,  // 5: 4ta justa
- -2.00,  // 6: Tritono
-  5.08,  // 7: 5ta justa
-  3.60,  // 8: 6ta menor (menor natural/eólica)
-  1.80,  // 9: 6ta mayor (dórica / menor melódica)
-  3.80,  // 10: 7ma menor (menor natural)
-  3.60   // 11: 7ma mayor (sensible de menor armónica - CRÍTICO para resolver dominantes como A en Dm)
+// MODO MENOR (Universal: Natural, Armónica y Dórica):
+// La b2 (intervalo 1) es AJENA a Menor (ej. A# en La Menor se penaliza con -15.0)
+// La b6 (intervalo 8 = Bb en Re menor) es PROPIA de Menor (+3.5)
+const MINOR_WEIGHTS = [
+   6.0,  // 0: Tónica
+ -15.0,  // 1: b2 (ajena a la escala menor tradicional; descarta falsos positivos)
+   2.5,  // 2: 2da mayor
+   5.0,  // 3: 3ra menor (definitoria de modo menor)
+ -18.0,  // 4: 3ra mayor (incompatible con Menor)
+   3.0,  // 5: 4ta justa
+  -8.0,  // 6: Tritono
+   4.5,  // 7: 5ta justa
+   3.5,  // 8: 6ta menor (b6, característica de Re menor con Bb/A#)
+   2.0,  // 9: 6ta mayor (dórica / melódica)
+   3.0,  // 10: 7ma menor (menor natural)
+   3.5   // 11: 7ma mayor (sensible de menor armónica, ej. C# en Re menor)
 ];
 
 export interface KeySignatureMatch {
@@ -66,35 +67,31 @@ export interface KeySignatureMatch {
 }
 
 export class KeyDetector {
-  /**
-   * Extrae los tokens de notas válidos ignorando comentarios entre asteriscos y separadores.
-   */
-  private static extractPitches(text: string): { pitches: number[]; first?: number; last?: number } {
+  private static extractPitches(text: string): { pitches: number[]; first?: number; last?: number; secondLast?: number } {
     if (!text) return { pitches: [] };
 
-    // 1. Eliminar comentarios entre asteriscos (*...*) y normalizar sostenidos / bemoles
-    const clean = text.replace(/\*([^*]*)\*?/g, ' ').replace(/♯/g, '#').replace(/♭/g, 'B');
+    // Ignorar anotaciones entre asteriscos (*...*) y normalizar sostenidos / bemoles unicode
+    const clean = text.replace(/\*([^*]*)\*?/g, ' ').replace(/♯/g, '#').replace(/♭/g, 'b');
 
-    // 2. Extraer palabras y símbolos priorizando solfeo multi-carácter para evitar que DO/RE/FA se consuman como [A-G]
-    const tokens = clean.toUpperCase().match(/(DO[#B]?|RE[#B]?|MI|FA[#B]?|SOL[#B]?|LA[#B]?|SI[#B]?|[A-G][#B]?)/g) || [];
-
+    const tokens = clean.match(/(DO[#b]?|RE[#b]?|MI[#b]?|FA[#b]?|SOL[#b]?|LA[#b]?|SI[#b]?|Do[#b]?|Re[#b]?|Mi[#b]?|Fa[#b]?|Sol[#b]?|La[#b]?|Si[#b]?|[A-Ga-g][#b]?)/g) || [];
     const pitches: number[] = [];
+
     tokens.forEach(tok => {
-      if (PITCH_INDEX[tok] !== undefined) {
-        pitches.push(PITCH_INDEX[tok]);
+      const norm = tok.toUpperCase();
+      if (PITCH_INDEX[norm] !== undefined) {
+        pitches.push(PITCH_INDEX[norm]);
       }
     });
 
+    const len = pitches.length;
     return {
       pitches,
-      first: pitches.length > 0 ? pitches[0] : undefined,
-      last: pitches.length > 0 ? pitches[pitches.length - 1] : undefined
+      first: len > 0 ? pitches[0] : undefined,
+      last: len > 0 ? pitches[len - 1] : undefined,
+      secondLast: len > 1 ? pitches[len - 2] : undefined
     };
   }
 
-  /**
-   * Evalúa la tonalidad armónica más probable.
-   */
   public static detectKey(text: string): string;
   public static detectKey(notes: any[]): KeySignatureMatch;
   public static detectKey(input: any): any {
@@ -115,58 +112,71 @@ export class KeyDetector {
   }
 
   private static detectKeyInternal(text: string): string {
-    const { pitches, first, last } = this.extractPitches(text);
+    const { pitches, first, last, secondLast } = this.extractPitches(text);
 
     if (pitches.length === 0) {
       return 'Sin tono';
     }
 
-    // Histograma de frecuencias de clases de tono
     const counts = new Array(12).fill(0);
     pitches.forEach(p => counts[p]++);
-
-    const uniquePitchesCount = counts.filter(c => c > 0).length;
-    const totalPitches = pitches.length;
 
     let bestScore = -Infinity;
     let bestKey = 'C Mayor';
 
-    // Probar las 12 notas raíz como Mayor y como Menor
     for (let root = 0; root < 12; root++) {
-      // 1. Evaluación en MODO MAYOR
+      // 1. EVALUAR MODO MAYOR
       let scoreMaj = 0;
       for (let i = 0; i < 12; i++) {
         const interval = (i - root + 12) % 12;
-        scoreMaj += counts[i] * MAJOR_PROFILE[interval];
+        scoreMaj += counts[i] * MAJOR_WEIGHTS[interval];
       }
-      // Ponderación de cadencia (última nota como tónica)
+      // Sinergia de tríada mayor (Tónica + 3ra mayor y 5ta justa)
+      if (counts[root] > 0 && counts[(root + 4) % 12] > 0) {
+        scoreMaj += 5.0;
+      }
+      if (counts[root] > 0 && counts[(root + 7) % 12] > 0) {
+        scoreMaj += 2.0;
+      }
+      // Resolución cadencial
       if (last === root) {
-        scoreMaj += 4.5 * (totalPitches / Math.max(1, uniquePitchesCount));
+        scoreMaj += 6.0;
+        if (secondLast === (root + 2) % 12 || secondLast === (root + 11) % 12 || secondLast === (root + 7) % 12) {
+          scoreMaj += 4.0; // Cadencia auténtica (2->1, 7->1, 5->1)
+        }
       }
-      if (first === root) {
-        scoreMaj += 1.5;
-      }
+      if (first === root) scoreMaj += 2.0;
+
       if (scoreMaj > bestScore) {
         bestScore = scoreMaj;
-        bestKey = `${ROOT_NAMES_EN[root]} Mayor`;
+        bestKey = `${ROOT_NAMES[root]} Mayor`;
       }
 
-      // 2. Evaluación en MODO MENOR
+      // 2. EVALUAR MODO MENOR
       let scoreMin = 0;
       for (let i = 0; i < 12; i++) {
         const interval = (i - root + 12) % 12;
-        scoreMin += counts[i] * MINOR_PROFILE[interval];
+        scoreMin += counts[i] * MINOR_WEIGHTS[interval];
       }
-      // Ponderación de cadencia (última nota como tónica)
+      // Sinergia de tríada menor (Tónica + 3ra menor y 5ta justa)
+      if (counts[root] > 0 && counts[(root + 3) % 12] > 0) {
+        scoreMin += 5.0;
+      }
+      if (counts[root] > 0 && counts[(root + 7) % 12] > 0) {
+        scoreMin += 2.0;
+      }
+      // Resolución cadencial
       if (last === root) {
-        scoreMin += 4.5 * (totalPitches / Math.max(1, uniquePitchesCount));
+        scoreMin += 6.0;
+        if (secondLast === (root + 2) % 12 || secondLast === (root + 11) % 12 || secondLast === (root + 10) % 12 || secondLast === (root + 7) % 12) {
+          scoreMin += 4.0; // Cadencia auténtica (2->1, 7->1, b7->1, 5->1)
+        }
       }
-      if (first === root) {
-        scoreMin += 1.5;
-      }
+      if (first === root) scoreMin += 2.0;
+
       if (scoreMin > bestScore) {
         bestScore = scoreMin;
-        bestKey = `${ROOT_NAMES_EN[root]} Menor`;
+        bestKey = `${ROOT_NAMES[root]} Menor`;
       }
     }
 

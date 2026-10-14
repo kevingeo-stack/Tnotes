@@ -99,6 +99,14 @@ describe('KeyDetector', () => {
         expect(detectKey(davidSolfeo)).toBe('D Menor');
     });
 
+    it('accurately detects "Fiesta" as D Menor (English and Solfeo)', () => {
+        const fiestaEn = "F F / F D F D F F / E E E D E / E E E D E / A A# A A# A A";
+        expect(detectKey(fiestaEn)).toBe('D Menor');
+
+        const fiestaSolfeo = "Fa Fa / Fa Re Fa Re Fa Fa / Mi Mi Mi Re Mi / Mi Mi Mi Re Mi / La La# La La# La La";
+        expect(detectKey(fiestaSolfeo)).toBe('D Menor');
+    });
+
     it('returns Sin tono for empty or non-musical data', () => {
         expect(detectKey("")).toBe('Sin tono');
         expect(detectKey([])).toBe('Sin tono');
