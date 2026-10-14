@@ -248,8 +248,8 @@ export default function App() {
           )}
         </div>
 
-        {/* MOBILE FAB: Oculto completamente mientras se está dentro de una lista para no tapar controles ni notas */}
-        {!(currentView === 'setlist' && isInsideSetlist) && (
+        {/* MOBILE FAB: Oculto en el editor y dentro de listas para no estorbar la barra de notas ni atril */}
+        {currentView !== 'editor' && !(currentView === 'setlist' && isInsideSetlist) && (
           <div className="lg:hidden">
             <FabNavigation 
               currentView={currentView}

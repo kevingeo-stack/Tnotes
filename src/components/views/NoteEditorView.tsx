@@ -125,19 +125,43 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     onSaveAndExit();
   };
 
-  const insertNote = (char: string) => {
-    if (!textareaRef.current) return;
-    const { selectionStart, selectionEnd } = textareaRef.current;
-    
-    const newContent = content.substring(0, selectionStart) + char + content.substring(selectionEnd);
+  const handleQuickNoteInsert = (e: React.SyntheticEvent, noteToAdd: string) => {
+    // CRÍTICO: Prevenir el comportamiento por defecto para que el celular NO despliegue el teclado virtual QWERTY
+    e.preventDefault();
+
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      const spaceBefore = content.length > 0 && !content.endsWith(' ') && !content.endsWith('\n') ? ' ' : '';
+      const inserted = `${spaceBefore}${noteToAdd} `;
+      updateStateAndStorage(title, content + inserted, activeInstrument);
+      return;
+    }
+
+    const start = textarea.selectionStart ?? content.length;
+    const end = textarea.selectionEnd ?? content.length;
+    const before = content.substring(0, start);
+    const after = content.substring(end);
+
+    // Espaciado inteligente
+    let inserted = '';
+    if (noteToAdd === '#') {
+      inserted = '# ';
+    } else {
+      const spaceBefore = before.length > 0 && !before.endsWith(' ') && !before.endsWith('\n') ? ' ' : '';
+      inserted = `${spaceBefore}${noteToAdd} `;
+    }
+
+    const newContent = `${before}${inserted}${after}`;
     updateStateAndStorage(title, newContent, activeInstrument);
-    
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        textareaRef.current.setSelectionRange(selectionStart + char.length, selectionStart + char.length);
+
+    // Actualizar posición del cursor internamente sin provocar focus invasivo
+    const nextPos = start + inserted.length;
+    requestAnimationFrame(() => {
+      if (textarea) {
+        textarea.selectionStart = nextPos;
+        textarea.selectionEnd = nextPos;
       }
-    }, 0);
+    });
   };
 
   const baseNotesEn = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
@@ -197,10 +221,12 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
       />
 
       {/* Bottom Bar: absolute inside the parent wrapper */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white dark:bg-[#28292A] rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 flex flex-wrap justify-center gap-1 sm:gap-2 z-40 w-[90%] sm:w-auto max-w-[440px]">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white dark:bg-[#28292A] rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 flex flex-wrap justify-center gap-1 sm:gap-2 z-40 w-[95%] sm:w-auto max-w-[460px]">
         <button 
-          onClick={() => insertNote('#')} 
-          className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 flex items-center justify-center bg-gray-100 dark:bg-[#1F1F1F] hover:bg-gray-200 dark:hover:bg-gray-800 rounded-xl font-bold text-lg sm:text-xl text-gray-800 dark:text-gray-200 transition active:scale-95"
+          onMouseDown={(e) => e.preventDefault()}
+          onTouchStart={(e) => e.preventDefault()}
+          onClick={(e) => handleQuickNoteInsert(e, '#')}
+          className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 flex items-center justify-center bg-gray-100 dark:bg-[#1F1F1F] hover:bg-gray-200 dark:hover:bg-gray-800 rounded-xl font-bold text-lg sm:text-xl text-gray-800 dark:text-gray-200 transition active:scale-95 cursor-pointer select-none"
         >
           #
         </button>
@@ -208,8 +234,10 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
         {quickAssistNotes.map(n => (
           <button 
             key={n} 
-            onClick={() => insertNote(n)}
-            className="flex-1 min-w-[36px] h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-white dark:bg-[#28292A] hover:bg-amber-50 dark:hover:bg-amber-900/20 text-amber-700 dark:text-amber-500 border border-amber-100 dark:border-amber-900/30 rounded-xl font-bold text-sm sm:text-lg transition active:scale-95"
+            onMouseDown={(e) => e.preventDefault()}
+            onTouchStart={(e) => e.preventDefault()}
+            onClick={(e) => handleQuickNoteInsert(e, n)}
+            className="flex-1 min-w-[36px] h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-white dark:bg-[#28292A] hover:bg-amber-50 dark:hover:bg-amber-900/20 text-amber-700 dark:text-amber-500 border border-amber-100 dark:border-amber-900/30 rounded-xl font-bold text-sm sm:text-lg transition active:scale-95 cursor-pointer select-none"
           >
             {n}
           </button>
