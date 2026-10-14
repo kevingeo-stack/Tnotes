@@ -125,15 +125,24 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     onSaveAndExit();
   };
 
-  const handleQuickNoteInsert = (e: React.SyntheticEvent, noteToAdd: string) => {
-    // CRÍTICO: Prevenir el comportamiento por defecto para que el celular NO despliegue el teclado virtual QWERTY
+  const dismissKeyboard = () => {
+    if (textareaRef.current) {
+      textareaRef.current.blur();
+    }
+    if (typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  };
+
+  const handleNaturalNoteInsert = (e: React.SyntheticEvent, noteToAdd: string) => {
     e.preventDefault();
+    dismissKeyboard();
 
     const textarea = textareaRef.current;
     if (!textarea) {
-      const spaceBefore = content.length > 0 && !content.endsWith(' ') && !content.endsWith('\n') ? ' ' : '';
-      const inserted = `${spaceBefore}${noteToAdd} `;
-      updateStateAndStorage(title, content + inserted, activeInstrument);
+      const needsLeading = content.length > 0 && !content.endsWith(' ') && !content.endsWith('\n');
+      const textToInsert = `${needsLeading ? ' ' : ''}${noteToAdd} `;
+      updateStateAndStorage(title, content + textToInsert, activeInstrument);
       return;
     }
 
@@ -142,20 +151,50 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     const before = content.substring(0, start);
     const after = content.substring(end);
 
-    // Espaciado inteligente
-    let inserted = '';
-    if (noteToAdd === '#') {
-      inserted = '# ';
-    } else {
-      const spaceBefore = before.length > 0 && !before.endsWith(' ') && !before.endsWith('\n') ? ' ' : '';
-      inserted = `${spaceBefore}${noteToAdd} `;
-    }
+    // Asegurar un espacio antes si el texto previo no termina en espacio ni salto de línea
+    const needsLeadingSpace = before.length > 0 && !/[\s\n]$/.test(before);
+    const textToInsert = `${needsLeadingSpace ? ' ' : ''}${noteToAdd} `;
+    const newContent = `${before}${textToInsert}${after}`;
 
-    const newContent = `${before}${inserted}${after}`;
     updateStateAndStorage(title, newContent, activeInstrument);
 
-    // Actualizar posición del cursor internamente sin provocar focus invasivo
-    const nextPos = start + inserted.length;
+    const nextPos = start + textToInsert.length;
+    requestAnimationFrame(() => {
+      if (textarea) {
+        textarea.selectionStart = nextPos;
+        textarea.selectionEnd = nextPos;
+      }
+    });
+  };
+
+  const handleSharpInsert = (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    dismissKeyboard();
+
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      // Eliminar espacio final si existe y pegar el sostenido
+      const trimmed = content.replace(/\s+$/, '');
+      const newContent = trimmed ? `${trimmed}# ` : `# `;
+      updateStateAndStorage(title, newContent, activeInstrument);
+      return;
+    }
+
+    const start = textarea.selectionStart ?? content.length;
+    const end = textarea.selectionEnd ?? content.length;
+    let before = content.substring(0, start);
+    const after = content.substring(end);
+
+    // ELIMINAR el espacio final antes del cursor para unir el '#' a la nota
+    before = before.replace(/\s+$/, '');
+
+    // Si no hay ninguna nota previa, no se deja espacio antes, solo "# "
+    const textToInsert = `# `;
+    const newContent = `${before}${textToInsert}${after}`;
+
+    updateStateAndStorage(title, newContent, activeInstrument);
+
+    const nextPos = before.length + textToInsert.length;
     requestAnimationFrame(() => {
       if (textarea) {
         textarea.selectionStart = nextPos;
@@ -224,8 +263,8 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white dark:bg-[#28292A] rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 flex flex-wrap justify-center gap-1 sm:gap-2 z-40 w-[95%] sm:w-auto max-w-[460px]">
         <button 
           onMouseDown={(e) => e.preventDefault()}
-          onTouchStart={(e) => e.preventDefault()}
-          onClick={(e) => handleQuickNoteInsert(e, '#')}
+          onTouchStart={(e) => handleSharpInsert(e)}
+          onClick={(e) => handleSharpInsert(e)}
           className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0 flex items-center justify-center bg-gray-100 dark:bg-[#1F1F1F] hover:bg-gray-200 dark:hover:bg-gray-800 rounded-xl font-bold text-lg sm:text-xl text-gray-800 dark:text-gray-200 transition active:scale-95 cursor-pointer select-none"
         >
           #
@@ -235,8 +274,8 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
           <button 
             key={n} 
             onMouseDown={(e) => e.preventDefault()}
-            onTouchStart={(e) => e.preventDefault()}
-            onClick={(e) => handleQuickNoteInsert(e, n)}
+            onTouchStart={(e) => handleNaturalNoteInsert(e, n)}
+            onClick={(e) => handleNaturalNoteInsert(e, n)}
             className="flex-1 min-w-[36px] h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-white dark:bg-[#28292A] hover:bg-amber-50 dark:hover:bg-amber-900/20 text-amber-700 dark:text-amber-500 border border-amber-100 dark:border-amber-900/30 rounded-xl font-bold text-sm sm:text-lg transition active:scale-95 cursor-pointer select-none"
           >
             {n}

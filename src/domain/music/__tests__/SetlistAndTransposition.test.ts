@@ -157,4 +157,26 @@ describe('Setlist & Persistent Transposition State', () => {
       expect(afterDelete[0].id).toBe('list-2');
     });
   });
+
+  describe('Quick Note Insertion Formatting', () => {
+    it('formats sequence E E E # E directly into E E E# E', () => {
+      let content = '';
+      const insertNatural = (note: string) => {
+        const needsLeading = content.length > 0 && !/[\s\n]$/.test(content);
+        content = `${content}${needsLeading ? ' ' : ''}${note} `;
+      };
+      const insertSharp = () => {
+        const before = content.replace(/\s+$/, '');
+        content = `${before}# `;
+      };
+
+      insertNatural('E');
+      insertNatural('E');
+      insertNatural('E');
+      insertSharp();
+      insertNatural('E');
+
+      expect(content.trim()).toBe('E E E# E');
+    });
+  });
 });
