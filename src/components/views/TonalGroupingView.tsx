@@ -4,6 +4,7 @@ import { SongNote } from '../../types/note';
 import { NoteStorageService } from '../../services/storage/NoteStorageService';
 import { formatKeyName, NotationSystem } from '../../domain/music/NotationSystem';
 import { ConfirmModal } from '../common/ConfirmModal';
+import { renderFormattedMusicContent } from './SetlistView';
 
 interface TonalGroupingViewProps {
   onSelectNote: (note: SongNote) => void;
@@ -82,9 +83,9 @@ export function TonalGroupingView({ onSelectNote, onDeleteNote, notation }: Tona
                       </button>
                     </div>
                   </div>
-                  <p className="text-gray-500 dark:text-gray-400 text-sm flex-1 overflow-hidden font-mono whitespace-pre-wrap">
-                    {note.content}
-                  </p>
+                  <div className="text-gray-500 dark:text-gray-400 text-sm flex-1 overflow-hidden font-mono whitespace-pre-wrap">
+                    {renderFormattedMusicContent(note.content)}
+                  </div>
                   <div className="mt-3 text-xs text-gray-400 dark:text-gray-500 flex justify-between items-center">
                     <span>{new Date(note.updatedAt).toLocaleDateString()}</span>
                   </div>

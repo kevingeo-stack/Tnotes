@@ -204,12 +204,55 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     });
   };
 
+  const handleBackspace = (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    dismissKeyboard();
+
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      const newContent = content.slice(0, -1);
+      updateStateAndStorage(title, newContent, activeInstrument);
+      return;
+    }
+
+    const start = textarea.selectionStart ?? content.length;
+    const end = textarea.selectionEnd ?? content.length;
+
+    if (start === 0 && end === 0) return;
+
+    let before = content.substring(0, start);
+    const after = content.substring(end);
+
+    // Si hay selección, borra la selección; si no, borra el carácter anterior
+    if (start === end) {
+      before = before.slice(0, -1);
+    }
+
+    const newContent = `${before}${after}`;
+    updateStateAndStorage(title, newContent, activeInstrument);
+
+    const nextPos = Math.max(0, start === end ? start - 1 : start);
+    requestAnimationFrame(() => {
+      if (textarea) {
+        textarea.selectionStart = nextPos;
+        textarea.selectionEnd = nextPos;
+      }
+    });
+  };
+
+  const handleOpenKeyboard = (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  };
+
   const baseNotesEn = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
   const baseNotesNat = ['Do', 'Re', 'Mi', 'Fa', 'Sol', 'La', 'Si'];
   const quickAssistNotes = notation === 'en' ? baseNotesEn : baseNotesNat;
 
   return (
-    <div className="flex flex-col w-full h-full pt-4 px-4 pb-32">
+    <div className="flex flex-col w-full h-full pt-4 px-4 pb-36 sm:pb-40">
       <div className="flex flex-col gap-4 mb-6">
         
         {/* Header / Actions */}
@@ -260,57 +303,91 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
         className="w-full flex-1 bg-transparent resize-none outline-none text-xl text-[#202124] dark:text-[#E8EAED] leading-relaxed font-mono min-h-[50vh]"
       />
 
-      {/* Bottom Bar: absolute inside the parent wrapper */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white dark:bg-[#28292A] rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 flex flex-wrap justify-center items-center gap-1 sm:gap-1.5 z-40 w-[96%] sm:w-auto max-w-[620px]">
-        <button 
-          type="button"
-          onPointerDown={(e) => { e.preventDefault(); dismissKeyboard(); }}
-          onClick={(e) => handleSharpInsert(e)}
-          className="w-9 h-10 sm:w-11 sm:h-12 flex-shrink-0 flex items-center justify-center bg-gray-100 dark:bg-[#1F1F1F] hover:bg-gray-200 dark:hover:bg-gray-800 rounded-xl font-bold text-lg sm:text-xl text-gray-800 dark:text-gray-200 transition active:scale-95 cursor-pointer select-none"
-          title="Sostenido (#)"
-        >
-          #
-        </button>
-        <div className="w-px bg-gray-200 dark:bg-gray-700 h-6 mx-0.5 hidden sm:block"></div>
-        {quickAssistNotes.map(n => (
+      {/* Two-Tier Assistant Toolbar */}
+      <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 bg-white dark:bg-[#28292A] rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 p-2 sm:p-2.5 flex flex-col gap-2 z-40 w-[96%] sm:w-auto max-w-[640px]">
+        
+        {/* FILA SUPERIOR: EXCLUSIVAMENTE NOTAS AMPLIADAS Y SOSTENIDO (#) */}
+        <div className="flex items-center justify-between gap-1 sm:gap-1.5 w-full">
+          {quickAssistNotes.map((n) => (
+            <button 
+              type="button"
+              key={n} 
+              onPointerDown={(e) => { e.preventDefault(); dismissKeyboard(); }}
+              onClick={(e) => handleNaturalNoteInsert(e, n)}
+              className="flex-1 min-w-[32px] sm:min-w-[42px] h-12 sm:h-14 flex items-center justify-center bg-white dark:bg-[#28292A] hover:bg-amber-50 dark:hover:bg-amber-900/25 active:bg-amber-100 text-amber-700 dark:text-amber-500 border border-amber-200 dark:border-amber-800/40 rounded-xl font-bold text-base sm:text-xl transition active:scale-95 cursor-pointer select-none shadow-xs"
+            >
+              {n}
+            </button>
+          ))}
+          
+          {/* Botón Sostenido (#) integrado en la fila superior */}
           <button 
             type="button"
-            key={n} 
             onPointerDown={(e) => { e.preventDefault(); dismissKeyboard(); }}
-            onClick={(e) => handleNaturalNoteInsert(e, n)}
-            className="flex-1 min-w-[30px] sm:min-w-[36px] h-10 sm:h-12 flex items-center justify-center bg-white dark:bg-[#28292A] hover:bg-amber-50 dark:hover:bg-amber-900/20 text-amber-700 dark:text-amber-500 border border-amber-100 dark:border-amber-900/30 rounded-xl font-bold text-sm sm:text-lg transition active:scale-95 cursor-pointer select-none"
+            onClick={(e) => handleSharpInsert(e)}
+            className="flex-1 min-w-[32px] sm:min-w-[42px] h-12 sm:h-14 flex items-center justify-center bg-gray-100 dark:bg-[#1F1F1F] hover:bg-gray-200 dark:hover:bg-gray-800 active:bg-gray-300 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700/60 rounded-xl font-bold text-lg sm:text-2xl transition active:scale-95 cursor-pointer select-none shadow-xs"
+            title="Sostenido (#)"
           >
-            {n}
+            #
           </button>
-        ))}
-        <div className="w-px bg-gray-200 dark:bg-gray-700 h-6 mx-0.5 hidden sm:block"></div>
-        <button 
-          type="button"
-          onPointerDown={(e) => { e.preventDefault(); dismissKeyboard(); }}
-          onClick={(e) => handleInsertSymbol(e, '\n')}
-          className="w-9 h-10 sm:w-11 sm:h-12 flex-shrink-0 flex items-center justify-center bg-gray-100 dark:bg-[#1F1F1F] hover:bg-gray-200 dark:hover:bg-gray-800 rounded-xl font-bold text-base sm:text-lg text-gray-800 dark:text-gray-200 transition active:scale-95 cursor-pointer select-none"
-          title="Salto de línea (↵)"
-        >
-          ↵
-        </button>
-        <button 
-          type="button"
-          onPointerDown={(e) => { e.preventDefault(); dismissKeyboard(); }}
-          onClick={(e) => handleInsertSymbol(e, '/ ')}
-          className="w-9 h-10 sm:w-11 sm:h-12 flex-shrink-0 flex items-center justify-center bg-gray-100 dark:bg-[#1F1F1F] hover:bg-gray-200 dark:hover:bg-gray-800 rounded-xl font-bold text-base sm:text-lg text-gray-800 dark:text-gray-200 transition active:scale-95 cursor-pointer select-none"
-          title="Separador de compás (/)"
-        >
-          /
-        </button>
-        <button 
-          type="button"
-          onPointerDown={(e) => { e.preventDefault(); dismissKeyboard(); }}
-          onClick={(e) => handleInsertSymbol(e, '*')}
-          className="w-9 h-10 sm:w-11 sm:h-12 flex-shrink-0 flex items-center justify-center bg-gray-100 dark:bg-[#1F1F1F] hover:bg-gray-200 dark:hover:bg-gray-800 rounded-xl font-bold text-base sm:text-lg text-gray-800 dark:text-gray-200 transition active:scale-95 cursor-pointer select-none"
-          title="Asterisco de comentario (*)"
-        >
-          *
-        </button>
+        </div>
+
+        {/* FILA INFERIOR: UTILIDADES, PUNTUACIÓN, BORRAR Y TECLADO */}
+        <div className="flex items-center justify-between gap-1.5 sm:gap-2 w-full pt-1 border-t border-gray-100 dark:border-gray-700/60">
+          {/* Salto de línea */}
+          <button 
+            type="button"
+            onPointerDown={(e) => { e.preventDefault(); dismissKeyboard(); }}
+            onClick={(e) => handleInsertSymbol(e, '\n')}
+            className="flex-1 h-10 sm:h-11 flex items-center justify-center bg-gray-100 dark:bg-[#1F1F1F] hover:bg-gray-200 dark:hover:bg-gray-800 active:bg-gray-300 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700/60 rounded-xl font-bold text-base sm:text-lg transition active:scale-95 cursor-pointer select-none"
+            title="Salto de línea (↵)"
+          >
+            ↵
+          </button>
+
+          {/* Separador de compás */}
+          <button 
+            type="button"
+            onPointerDown={(e) => { e.preventDefault(); dismissKeyboard(); }}
+            onClick={(e) => handleInsertSymbol(e, '/ ')}
+            className="flex-1 h-10 sm:h-11 flex items-center justify-center bg-gray-100 dark:bg-[#1F1F1F] hover:bg-gray-200 dark:hover:bg-gray-800 active:bg-gray-300 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700/60 rounded-xl font-bold text-base sm:text-lg transition active:scale-95 cursor-pointer select-none"
+            title="Separador de compás (/)"
+          >
+            /
+          </button>
+
+          {/* Asterisco para anotaciones */}
+          <button 
+            type="button"
+            onPointerDown={(e) => { e.preventDefault(); dismissKeyboard(); }}
+            onClick={(e) => handleInsertSymbol(e, '*')}
+            className="flex-1 h-10 sm:h-11 flex items-center justify-center bg-gray-100 dark:bg-[#1F1F1F] hover:bg-gray-200 dark:hover:bg-gray-800 active:bg-gray-300 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700/60 rounded-xl font-bold text-base sm:text-lg transition active:scale-95 cursor-pointer select-none"
+            title="Asterisco para anotaciones (*)"
+          >
+            *
+          </button>
+
+          {/* Botón Borrar (Backspace) */}
+          <button 
+            type="button"
+            onPointerDown={(e) => { e.preventDefault(); dismissKeyboard(); }}
+            onClick={handleBackspace}
+            className="flex-1 h-10 sm:h-11 flex items-center justify-center bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-900/30 active:bg-red-200 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/30 rounded-xl font-bold text-base sm:text-lg transition active:scale-95 cursor-pointer select-none"
+            title="Borrar (⌫)"
+          >
+            ⌫
+          </button>
+
+          {/* Botón para Abrir el Teclado Virtual del Celular */}
+          <button 
+            type="button"
+            onClick={handleOpenKeyboard}
+            className="flex-1 h-10 sm:h-11 flex items-center justify-center bg-blue-50 dark:bg-blue-950/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 active:bg-blue-200 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/30 rounded-xl font-bold text-base sm:text-lg transition active:scale-95 cursor-pointer select-none"
+            title="Abrir teclado virtual (⌨️)"
+          >
+            ⌨️
+          </button>
+        </div>
       </div>
     </div>
   );

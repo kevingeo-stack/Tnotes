@@ -37,7 +37,7 @@ export function renderFormattedMusicContent(rawContent: string) {
       return (
         <span
           key={index}
-          className="text-sm font-sans italic font-normal text-neutral-400 dark:text-neutral-500 mx-1 select-text"
+          className="text-xs md:text-sm font-sans italic font-normal text-neutral-400 dark:text-neutral-500 opacity-75 mx-1 select-text"
         >
           {part}
         </span>
