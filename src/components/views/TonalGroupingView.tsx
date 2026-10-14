@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Trash2 } from 'lucide-react';
 import { SongNote } from '../../types/note';
 import { NoteStorageService } from '../../services/storage/NoteStorageService';
 import { formatKeyName, NotationSystem } from '../../domain/music/NotationSystem';
+import { ConfirmModal } from '../common/ConfirmModal';
 
 interface TonalGroupingViewProps {
   onSelectNote: (note: SongNote) => void;
@@ -11,6 +12,7 @@ interface TonalGroupingViewProps {
 }
 
 export function TonalGroupingView({ onSelectNote, onDeleteNote, notation }: TonalGroupingViewProps) {
+  const [songToDelete, setSongToDelete] = useState<string | null>(null);
   const groupedNotes = useMemo(() => NoteStorageService.groupByKey(), []);
 
   return (
@@ -52,13 +54,12 @@ export function TonalGroupingView({ onSelectNote, onDeleteNote, notation }: Tona
                         </span>
                       )}
                       <button
+                        type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (window.confirm('¿Eliminar esta canción?')) {
-                            onDeleteNote(note.id);
-                          }
+                          setSongToDelete(note.id);
                         }}
-                        className="p-1.5 text-neutral-400 hover:text-red-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition cursor-pointer"
+                        className="p-1.5 text-neutral-400 hover:text-red-500 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
                         title="Eliminar canción"
                       >
                         <Trash2 size={16} />
@@ -77,6 +78,19 @@ export function TonalGroupingView({ onSelectNote, onDeleteNote, notation }: Tona
           </div>
         );
       })}
+
+      {/* Modal: Confirmar Eliminación de Canción */}
+      <ConfirmModal
+        isOpen={!!songToDelete}
+        title="Eliminar canción"
+        onCancel={() => setSongToDelete(null)}
+        onConfirm={() => {
+          if (songToDelete) {
+            onDeleteNote(songToDelete);
+            setSongToDelete(null);
+          }
+        }}
+      />
     </div>
   );
 }

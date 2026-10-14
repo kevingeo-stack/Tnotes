@@ -19,6 +19,7 @@ import { SetlistStorageService, deleteSetlist } from '../../services/storage/Set
 import { formatDualKeyDisplay, NotationSystem } from '../../domain/music/NotationSystem';
 import { detectKey } from '../../domain/music/KeyDetector';
 import { transposeKeyName } from '../../domain/music/TranspositionEngine';
+import { ConfirmModal } from '../common/ConfirmModal';
 
 interface SetlistViewProps {
   onOpenNoteInEditor?: (note: SongNote) => void;
@@ -39,6 +40,7 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
   const [newListName, setNewListName] = useState('');
   const [isSongSelectorOpen, setIsSongSelectorOpen] = useState(false);
   const [songSearchQuery, setSongSearchQuery] = useState('');
+  const [listToDelete, setListToDelete] = useState<string | null>(null);
 
   // Editing setlist title inline
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -95,14 +97,15 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
     setSelectedSetlistId(newSetlist.id); // Navigate directly to the new list
   };
 
-  // Handle deleting a setlist
-  const handleDeleteSetlist = (id: string, name: string) => {
-    if (window.confirm(`¿Estás seguro de eliminar la lista "${name}"?`)) {
-      deleteSetlist(id);
+  // Handle deleting a setlist via custom ConfirmModal
+  const handleDeleteConfirm = () => {
+    if (listToDelete) {
+      deleteSetlist(listToDelete);
       setSetlists(SetlistStorageService.getAll());
-      if (selectedSetlistId === id) {
+      if (selectedSetlistId === listToDelete) {
         setSelectedSetlistId(null);
       }
+      setListToDelete(null);
     }
   };
 
@@ -241,7 +244,7 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => handleDeleteSetlist(currentSetlist.id, currentSetlist.name)}
+                onClick={() => setListToDelete(currentSetlist.id)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 font-bold transition text-xs sm:text-sm cursor-pointer active:scale-95 border border-red-200 dark:border-red-900/50"
                 title="Eliminar esta lista completa"
               >
@@ -510,6 +513,14 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
             </div>
           </div>
         )}
+
+        {/* Modal: Confirmar Eliminación de Lista */}
+        <ConfirmModal 
+          isOpen={!!listToDelete} 
+          title="Eliminar lista" 
+          onCancel={() => setListToDelete(null)}
+          onConfirm={handleDeleteConfirm}
+        />
       </div>
     );
   }
@@ -586,12 +597,12 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleDeleteSetlist(list.id, list.name);
+                        setListToDelete(list.id);
                       }}
-                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition cursor-pointer active:scale-95"
+                      className="p-2 text-neutral-400 hover:text-red-500 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer active:scale-95"
                       title="Eliminar lista"
                     >
-                      <Trash2 size={17} />
+                      <Trash2 size={18} />
                     </button>
                   </div>
 
@@ -670,6 +681,14 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
           </div>
         </div>
       )}
+
+      {/* Modal: Confirmar Eliminación de Lista */}
+      <ConfirmModal 
+        isOpen={!!listToDelete} 
+        title="Eliminar lista" 
+        onCancel={() => setListToDelete(null)}
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   );
 }
