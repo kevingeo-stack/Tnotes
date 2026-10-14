@@ -41,11 +41,7 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     setContent(newContent);
     setActiveInstrument(newInstrument);
 
-    // Compute concert pitch key for categorization
-    const concertContent = newInstrument === 'trumpet'
-      ? transposeText(newContent, 'TRUMPET_TO_KEYBOARD')
-      : newContent;
-    const detectedKey = detectKey(concertContent);
+    const detectedKey = detectKey(newContent);
 
     const updated: SongNote = {
       ...note,
@@ -106,17 +102,15 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
       finalTitle = firstLine ? firstLine.substring(0, 30) : 'Canción sin título';
     }
 
-    const concertContent = activeInstrument === 'trumpet'
-      ? transposeText(content, 'TRUMPET_TO_KEYBOARD')
-      : content;
-    const detectedKey = detectKey(concertContent);
+    // Detección tonal sobre el cuerpo completo usando detectKey(content) como fuente de verdad absoluta
+    const currentFullKey = detectKey(content);
 
     const noteToSave: SongNote = {
       id: note?.id || Date.now().toString(),
       title: finalTitle,
       content: content,
       activeInstrument: activeInstrument || 'keyboard',
-      detectedKey: detectedKey,
+      detectedKey: currentFullKey, // Fuente de verdad absoluta
       updatedAt: Date.now()
     };
 

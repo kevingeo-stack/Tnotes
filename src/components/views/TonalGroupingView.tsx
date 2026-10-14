@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Trash2 } from 'lucide-react';
 import { SongNote } from '../../types/note';
 import { NoteStorageService } from '../../services/storage/NoteStorageService';
@@ -12,8 +12,24 @@ interface TonalGroupingViewProps {
 }
 
 export function TonalGroupingView({ onSelectNote, onDeleteNote, notation }: TonalGroupingViewProps) {
+  const [notes, setNotes] = useState<SongNote[]>([]);
   const [songToDelete, setSongToDelete] = useState<string | null>(null);
-  const groupedNotes = useMemo(() => NoteStorageService.groupByKey(), []);
+
+  // 1. Recarga Reactiva al Montar la Vista
+  useEffect(() => {
+    const freshNotes = NoteStorageService.getAll();
+    setNotes(freshNotes);
+  }, []);
+
+  // 2. Agrupación Estricta usando la propiedad note.detectedKey guardada
+  const groupedNotes = useMemo(() => {
+    return notes.reduce((acc, note) => {
+      const key = note.detectedKey || 'Indeterminada';
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(note);
+      return acc;
+    }, {} as Record<string, SongNote[]>);
+  }, [notes]);
 
   return (
     <div className="w-full mx-auto p-4 md:p-6 pb-32">
@@ -25,15 +41,15 @@ export function TonalGroupingView({ onSelectNote, onDeleteNote, notation }: Tona
         </div>
       )}
 
-      {Object.entries(groupedNotes).sort((a, b) => a[0].localeCompare(b[0])).map(([rawKey, notes]) => {
+      {Object.entries(groupedNotes).sort((a, b) => a[0].localeCompare(b[0])).map(([rawKey, groupNotes]) => {
         const displayKey = formatKeyName(rawKey, notation);
         return (
           <div key={rawKey} className="mb-10">
             <h2 className="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-2 flex items-baseline gap-2">
-              Tono {displayKey} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({notes.length} {notes.length === 1 ? 'canción' : 'canciones'})</span>
+              Tono {displayKey} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({groupNotes.length} {groupNotes.length === 1 ? 'canción' : 'canciones'})</span>
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-              {notes.map(note => (
+              {groupNotes.map(note => (
                 <div 
                   key={note.id} 
                   className="group relative bg-white dark:bg-[#28292A] p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md cursor-pointer transition flex flex-col h-40"
@@ -86,7 +102,9 @@ export function TonalGroupingView({ onSelectNote, onDeleteNote, notation }: Tona
         onCancel={() => setSongToDelete(null)}
         onConfirm={() => {
           if (songToDelete) {
+            NoteStorageService.delete(songToDelete);
             onDeleteNote(songToDelete);
+            setNotes(NoteStorageService.getAll());
             setSongToDelete(null);
           }
         }}

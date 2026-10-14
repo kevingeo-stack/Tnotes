@@ -69,6 +69,10 @@ describe('KeyDetector', () => {
         expect(detectKey(text)).toBe('A Menor');
     });
 
+    it('detects D Menor from D, E, F, A, A#', () => {
+        expect(detectKey("D, E, F, A, A#")).toBe('D Menor');
+    });
+
     it('returns Indeterminada for insufficient data', () => {
         expect(detectKey("Hola mundo")).toBe('Indeterminada');
         expect(detectKey([])).toBe('Indeterminada');

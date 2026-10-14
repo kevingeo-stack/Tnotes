@@ -1,7 +1,19 @@
-import { SharpPitch, normalizeToSharp, PITCH_CLASSES, NOTE_REGEX } from './PitchClass';
+import { SharpPitch, normalizeToSharp, PITCH_CLASSES } from './PitchClass';
 
 const MAJOR_PROFILE = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
 const MINOR_PROFILE = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
+
+const LATIN_TO_SHARP: Record<string, SharpPitch> = {
+    'do': 'C',
+    're': 'D',
+    'mi': 'E',
+    'fa': 'F',
+    'sol': 'G',
+    'so': 'G',
+    'la': 'A',
+    'si': 'B',
+    'ti': 'B'
+};
 
 function pearsonCorrelation(x: number[], y: number[]): number {
     const n = x.length;
@@ -22,7 +34,8 @@ export function detectKey(input: string | string[]): string {
     let totalNotes = 0;
 
     const processMatch = (match: string) => {
-        const pitch = normalizeToSharp(match);
+        const clean = match.replace(/♯/g, '#').replace(/♭/g, 'b');
+        const pitch = normalizeToSharp(clean);
         if (pitch) {
             const index = PITCH_CLASSES.indexOf(pitch);
             frequencies[index]++;
@@ -35,10 +48,26 @@ export function detectKey(input: string | string[]): string {
             processMatch(token);
         }
     } else {
-        const matches = input.match(/([A-Ga-g][#b]?)/g);
-        if (matches) {
-            for (const match of matches) {
-                processMatch(match);
+        const cleanInput = input.replace(/♯/g, '#').replace(/♭/g, 'b');
+        
+        // Detect Latin solfège notes if present
+        const latinRegex = /\b(Do|Re|Mi|Fa|Sol|So|La|Si|Ti)([#b])?(\d+)?\b/gi;
+        const latinMatches = cleanInput.match(latinRegex);
+        if (latinMatches && latinMatches.length >= 3) {
+            for (const m of latinMatches) {
+                const sub = m.match(/^(Do|Re|Mi|Fa|Sol|So|La|Si|Ti)([#b])?/i);
+                if (sub) {
+                    const base = LATIN_TO_SHARP[sub[1].toLowerCase()];
+                    if (base) processMatch(`${base}${sub[2] || ''}`);
+                }
+            }
+        } else {
+            // Process English notes while ignoring spaces, punctuation, numbers, and extra chars
+            const matches = cleanInput.match(/([A-Ga-g][#b]?)/g);
+            if (matches) {
+                for (const match of matches) {
+                    processMatch(match);
+                }
             }
         }
     }
@@ -60,8 +89,27 @@ export function detectKey(input: string | string[]): string {
             rotatedMinor[j] = MINOR_PROFILE[(j - i + 12) % 12];
         }
         
-        const scoreMajor = pearsonCorrelation(vector, rotatedMajor);
-        const scoreMinor = pearsonCorrelation(vector, rotatedMinor);
+        let scoreMajor = pearsonCorrelation(vector, rotatedMajor);
+        let scoreMinor = pearsonCorrelation(vector, rotatedMinor);
+
+        // Verification of root, third, and fifth presence
+        const hasTonic = frequencies[i] > 0;
+        const hasMinor3rd = frequencies[(i + 3) % 12] > 0;
+        const hasMajor3rd = frequencies[(i + 4) % 12] > 0;
+        const has5th = frequencies[(i + 7) % 12] > 0;
+
+        // If tonic root is completely absent from the song, heavily penalize
+        if (!hasTonic) {
+            scoreMajor -= 0.5;
+            scoreMinor -= 0.5;
+        } else {
+            // Ponder strongly tonic and minor third for minor profile
+            if (hasMinor3rd) scoreMinor += 0.2;
+            if (has5th && hasMinor3rd) scoreMinor += 0.15; // Complete minor triad
+
+            if (hasMajor3rd) scoreMajor += 0.2;
+            if (has5th && hasMajor3rd) scoreMajor += 0.15; // Complete major triad
+        }
         
         if (scoreMajor > maxScore) {
             maxScore = scoreMajor;
