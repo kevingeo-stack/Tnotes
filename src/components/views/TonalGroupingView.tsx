@@ -3,7 +3,6 @@ import { Trash2 } from 'lucide-react';
 import { SongNote } from '../../types/note';
 import { NoteStorageService } from '../../services/storage/NoteStorageService';
 import { formatKeyName, NotationSystem } from '../../domain/music/NotationSystem';
-import { ConfirmModal } from '../common/ConfirmModal';
 import { renderFormattedMusicContent } from './SetlistView';
 
 interface TonalGroupingViewProps {
@@ -14,7 +13,6 @@ interface TonalGroupingViewProps {
 
 export function TonalGroupingView({ onSelectNote, onDeleteNote, notation }: TonalGroupingViewProps) {
   const [notes, setNotes] = useState<SongNote[]>([]);
-  const [songToDelete, setSongToDelete] = useState<string | null>(null);
 
   // 1. Recarga Reactiva al Montar la Vista
   useEffect(() => {
@@ -74,9 +72,11 @@ export function TonalGroupingView({ onSelectNote, onDeleteNote, notation }: Tona
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSongToDelete(note.id);
+                          NoteStorageService.delete(note.id);
+                          onDeleteNote(note.id);
+                          setNotes(NoteStorageService.getAll());
                         }}
-                        className="p-1.5 text-neutral-400 hover:text-red-500 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
+                        className="p-1.5 text-neutral-400 hover:text-red-500 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                         title="Eliminar canción"
                       >
                         <Trash2 size={16} />
@@ -96,20 +96,6 @@ export function TonalGroupingView({ onSelectNote, onDeleteNote, notation }: Tona
         );
       })}
 
-      {/* Modal: Confirmar Eliminación de Canción */}
-      <ConfirmModal
-        isOpen={!!songToDelete}
-        title="Eliminar canción"
-        onCancel={() => setSongToDelete(null)}
-        onConfirm={() => {
-          if (songToDelete) {
-            NoteStorageService.delete(songToDelete);
-            onDeleteNote(songToDelete);
-            setNotes(NoteStorageService.getAll());
-            setSongToDelete(null);
-          }
-        }}
-      />
     </div>
   );
 }

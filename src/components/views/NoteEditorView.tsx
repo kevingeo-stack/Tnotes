@@ -17,6 +17,7 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
   const [activeInstrument, setActiveInstrument] = useState<'keyboard' | 'trumpet'>(note.activeInstrument || 'keyboard');
   const [content, setContent] = useState<string>(note.content || '');
   const [title, setTitle] = useState<string>(note.title || '');
+  const [isKeyboardMode, setIsKeyboardMode] = useState<boolean>(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Sync state when active note changes
@@ -24,6 +25,7 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     setActiveInstrument(note.activeInstrument || 'keyboard');
     setContent(note.content || '');
     setTitle(note.title || '');
+    setIsKeyboardMode(false);
   }, [note.id]);
 
   useEffect(() => {
@@ -120,8 +122,10 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
   };
 
   const dismissKeyboard = () => {
-    if (textareaRef.current) textareaRef.current.blur();
-    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    if (isKeyboardMode) {
+      if (textareaRef.current) textareaRef.current.blur();
+      setIsKeyboardMode(false);
+    }
   };
 
   const handleNaturalNoteInsert = (e: React.SyntheticEvent, note: string) => {
@@ -147,6 +151,7 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
       if (textarea) {
         textarea.selectionStart = nextPos;
         textarea.selectionEnd = nextPos;
+        textarea.focus();
       }
     });
   };
@@ -173,6 +178,7 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
       if (textarea) {
         textarea.selectionStart = nextPos;
         textarea.selectionEnd = nextPos;
+        textarea.focus();
       }
     });
   };
@@ -200,6 +206,7 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
       if (textarea) {
         textarea.selectionStart = nextPos;
         textarea.selectionEnd = nextPos;
+        textarea.focus();
       }
     });
   };
@@ -210,7 +217,8 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
 
     const textarea = textareaRef.current;
     if (!textarea) {
-      const newContent = content.slice(0, -1);
+      // Si no hay cursor, eliminar la última nota/token junto con espacios finales
+      const newContent = content.trimEnd().replace(/(\S+|\n)\s*$/, '');
       updateStateAndStorage(title, newContent, activeInstrument);
       return;
     }
@@ -223,28 +231,44 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     let before = content.substring(0, start);
     const after = content.substring(end);
 
-    // Si hay selección, borra la selección; si no, borra el carácter anterior
-    if (start === end) {
-      before = before.slice(0, -1);
+    if (start !== end) {
+      // Si hay texto seleccionado, borrar la selección
+      const newContent = `${content.substring(0, start)}${after}`;
+      updateStateAndStorage(title, newContent, activeInstrument);
+      requestAnimationFrame(() => {
+        textarea.selectionStart = start;
+        textarea.selectionEnd = start;
+        textarea.focus();
+      });
+      return;
     }
 
-    const newContent = `${before}${after}`;
+    // Si no hay selección: eliminar en UN SOLO CLIC el espacio final Y el token anterior (ej. "D# ", "Fa ", "/ ")
+    // Regex: detecta si termina en espacios y borra la palabra/símbolo anterior junto con los espacios
+    const match = before.match(/(\S+|\n)\s*$/);
+    let deleteCount = 1;
+    if (match) {
+      deleteCount = match[0].length; // Borra tanto el espacio como la nota completa previa
+    }
+
+    const newBefore = before.slice(0, -deleteCount);
+    const newContent = `${newBefore}${after}`;
     updateStateAndStorage(title, newContent, activeInstrument);
 
-    const nextPos = Math.max(0, start === end ? start - 1 : start);
+    const nextPos = Math.max(0, start - deleteCount);
     requestAnimationFrame(() => {
-      if (textarea) {
-        textarea.selectionStart = nextPos;
-        textarea.selectionEnd = nextPos;
-      }
+      textarea.selectionStart = nextPos;
+      textarea.selectionEnd = nextPos;
+      textarea.focus();
     });
   };
 
-  const handleOpenKeyboard = (e: React.SyntheticEvent) => {
+  const handleToggleKeyboard = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (textareaRef.current) {
-      textareaRef.current.focus();
-    }
+    setIsKeyboardMode(true);
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+    });
   };
 
   const baseNotesEn = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
@@ -299,8 +323,9 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
         ref={textareaRef}
         value={content}
         onChange={handleTextChange}
-        placeholder="Escribe tus acordes o notas aquí..."
-        className="w-full flex-1 bg-transparent resize-none outline-none text-xl text-[#202124] dark:text-[#E8EAED] leading-relaxed font-mono min-h-[50vh]"
+        inputMode={isKeyboardMode ? 'text' : 'none'}
+        placeholder="Escribe o toca las notas aquí..."
+        className="w-full flex-1 bg-transparent resize-none outline-none text-xl md:text-2xl text-[#202124] dark:text-[#E8EAED] leading-relaxed font-mono min-h-[50vh]"
       />
 
       {/* Two-Tier Assistant Toolbar */}
@@ -381,7 +406,7 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
           {/* Botón para Abrir el Teclado Virtual del Celular */}
           <button 
             type="button"
-            onClick={handleOpenKeyboard}
+            onClick={handleToggleKeyboard}
             className="flex-1 h-10 sm:h-11 flex items-center justify-center bg-blue-50 dark:bg-blue-950/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 active:bg-blue-200 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/30 rounded-xl font-bold text-base sm:text-lg transition active:scale-95 cursor-pointer select-none"
             title="Abrir teclado virtual (⌨️)"
           >

@@ -19,7 +19,6 @@ import { SetlistStorageService, deleteSetlist } from '../../services/storage/Set
 import { formatDualKeyDisplay, NotationSystem } from '../../domain/music/NotationSystem';
 import { detectKey } from '../../domain/music/KeyDetector';
 import { transposeKeyName } from '../../domain/music/TranspositionEngine';
-import { ConfirmModal } from '../common/ConfirmModal';
 
 interface SetlistViewProps {
   onOpenNoteInEditor?: (note: SongNote) => void;
@@ -60,7 +59,6 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
   const [newListName, setNewListName] = useState('');
   const [isSongSelectorOpen, setIsSongSelectorOpen] = useState(false);
   const [songSearchQuery, setSongSearchQuery] = useState('');
-  const [listToDelete, setListToDelete] = useState<string | null>(null);
 
   // Editing setlist title inline
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -115,18 +113,6 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
     setNewListName('');
     setIsCreateModalOpen(false);
     setSelectedSetlistId(newSetlist.id); // Navigate directly to the new list
-  };
-
-  // Handle deleting a setlist via custom ConfirmModal
-  const handleDeleteConfirm = () => {
-    if (listToDelete) {
-      deleteSetlist(listToDelete);
-      setSetlists(SetlistStorageService.getAll());
-      if (selectedSetlistId === listToDelete) {
-        setSelectedSetlistId(null);
-      }
-      setListToDelete(null);
-    }
   };
 
   // Handle saving inline edited title
@@ -617,9 +603,13 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setListToDelete(list.id);
+                        deleteSetlist(list.id);
+                        setSetlists(prev => prev.filter(l => l.id !== list.id));
+                        if (selectedSetlistId === list.id) {
+                          setSelectedSetlistId(null);
+                        }
                       }}
-                      className="p-2 text-neutral-400 hover:text-red-500 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer active:scale-95"
+                      className="p-2 text-neutral-400 hover:text-red-500 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                       title="Eliminar lista"
                     >
                       <Trash2 size={18} />
@@ -702,13 +692,6 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
         </div>
       )}
 
-      {/* Modal: Confirmar Eliminación de Lista */}
-      <ConfirmModal 
-        isOpen={!!listToDelete} 
-        title="Eliminar lista" 
-        onCancel={() => setListToDelete(null)}
-        onConfirm={handleDeleteConfirm}
-      />
     </div>
   );
 }
