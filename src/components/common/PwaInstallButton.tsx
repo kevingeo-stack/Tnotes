@@ -1,77 +1,72 @@
 import React, { useEffect, useState } from 'react';
-import { Download, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 
 export const PwaInstallButton: React.FC = () => {
-  const [installPrompt, setInstallPrompt] = useState<any>(null);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const [hasUpdate, setHasUpdate] = useState(false);
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
+  const [hasUpdate, setHasUpdate] = useState<boolean>(false);
 
   useEffect(() => {
-    setIsInstalled(
-      (typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches) ||
-      (typeof navigator !== 'undefined' && (navigator as any).standalone === true)
-    );
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
-    const handleBeforeInstall = (e: Event) => {
-      e.preventDefault();
-      setInstallPrompt(e);
-    };
+    navigator.serviceWorker.getRegistration().then((reg) => {
+      if (!reg) return;
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
-    window.addEventListener('appinstalled', () => {
-      setIsInstalled(true);
-      setInstallPrompt(null);
-    });
+      // Si ya había un worker en espera de activación:
+      if (reg.waiting && navigator.serviceWorker.controller) {
+        setWaitingWorker(reg.waiting);
+        setHasUpdate(true);
+      }
 
-    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistration().then(reg => {
-        if (!reg) return;
-        reg.onupdatefound = () => {
-          const worker = reg.installing;
-          if (worker) {
-            worker.onstatechange = () => {
-              if (worker.state === 'installed' && navigator.serviceWorker.controller) {
-                setHasUpdate(true);
-                setWaitingWorker(worker);
-              }
-            };
+      // Escuchar cuando se detecte una nueva versión descargándose:
+      reg.onupdatefound = () => {
+        const installingWorker = reg.installing;
+        if (!installingWorker) return;
+
+        installingWorker.onstatechange = () => {
+          if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // Hay una actualización lista para aplicarse
+            setWaitingWorker(installingWorker);
+            setHasUpdate(true);
           }
         };
-      });
-    }
+      };
+    });
 
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+    // Cuando el nuevo Service Worker tome el control, recargar la app
+    let refreshing = false;
+    const handleControllerChange = () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
+    };
+    navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+
+    return () => {
+      navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+    };
   }, []);
 
-  if (hasUpdate) {
-    return (
-      <button
-        onClick={() => { waitingWorker?.postMessage({ type: 'SKIP_WAITING' }); window.location.reload(); }}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-xs font-semibold shadow hover:bg-emerald-700 active:scale-95 transition-all cursor-pointer"
-        title="Actualizar a la nueva versión"
-      >
-        <RefreshCw size={14} className="animate-spin" />
-        <span>Actualizar App</span>
-      </button>
-    );
-  }
+  const handleUpdateClick = () => {
+    if (waitingWorker) {
+      waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+    } else {
+      window.location.reload();
+    }
+  };
 
-  if (isInstalled || !installPrompt) return null;
+  // El botón SOLO se muestra si se detectó una actualización pendiente
+  if (!hasUpdate) return null;
 
   return (
     <button
-      onClick={async () => {
-        if (!installPrompt) return;
-        installPrompt.prompt();
-        const res = await installPrompt.userChoice;
-        if (res.outcome === 'accepted') setInstallPrompt(null);
-      }}
-      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-600 text-white text-xs font-semibold shadow hover:bg-amber-700 active:scale-95 transition-all cursor-pointer"
-      title="Instalar en este dispositivo"
+      type="button"
+      onClick={handleUpdateClick}
+      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600 text-white text-xs font-semibold shadow hover:bg-emerald-700 active:scale-95 transition-all cursor-pointer"
+      title="Instalar última versión de TNotes"
     >
-      <Download size={14} />
-      <span>Descargar App</span>
+      <RefreshCw size={14} className="animate-spin" />
+      <span>Actualizar App</span>
     </button>
   );
 };

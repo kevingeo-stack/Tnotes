@@ -103,8 +103,36 @@ export const SetlistStorageService = {
 
       const all = this.getAll().filter(s => s.id !== id);
       storage.setItem(SETLISTS_STORAGE_KEY, JSON.stringify(all));
+
+      const raw = storage.getItem('trumpet_setlists_data');
+      if (raw) {
+        const lists = JSON.parse(raw);
+        if (Array.isArray(lists)) {
+          const filtered = lists.filter((item: any) => item.id !== id);
+          storage.setItem('trumpet_setlists_data', JSON.stringify(filtered));
+        }
+      }
     } catch (e) {
       console.warn('Failed to delete setlist from storage on mobile device', e);
     }
   }
 };
+
+export const deleteSetlist = (id: string): void => {
+  try {
+    SetlistStorageService.delete(id);
+    const storage = getStorage();
+    if (!storage) return;
+    const raw = storage.getItem('trumpet_setlists_data');
+    if (raw) {
+      const lists = JSON.parse(raw);
+      if (Array.isArray(lists)) {
+        const filtered = lists.filter((item: any) => item.id !== id);
+        storage.setItem('trumpet_setlists_data', JSON.stringify(filtered));
+      }
+    }
+  } catch (err) {
+    console.error("Error al eliminar la lista:", err);
+  }
+};
+

@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { SongNote, Setlist } from '../../types/note';
 import { NoteStorageService } from '../../services/storage/NoteStorageService';
-import { SetlistStorageService } from '../../services/storage/SetlistStorageService';
+import { SetlistStorageService, deleteSetlist } from '../../services/storage/SetlistStorageService';
 import { formatDualKeyDisplay, NotationSystem } from '../../domain/music/NotationSystem';
 import { detectKey } from '../../domain/music/KeyDetector';
 import { transposeKeyName } from '../../domain/music/TranspositionEngine';
@@ -98,7 +98,7 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
   // Handle deleting a setlist
   const handleDeleteSetlist = (id: string, name: string) => {
     if (window.confirm(`¿Estás seguro de eliminar la lista "${name}"?`)) {
-      SetlistStorageService.delete(id);
+      deleteSetlist(id);
       setSetlists(SetlistStorageService.getAll());
       if (selectedSetlistId === id) {
         setSelectedSetlistId(null);
@@ -229,7 +229,7 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
       <div className="w-full mx-auto p-3 sm:p-5 pb-28 max-w-5xl animate-in fade-in duration-150">
         {/* Navigation & Header */}
         <div className="flex flex-col gap-3 mb-5">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <button
               onClick={() => setSelectedSetlistId(null)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 font-bold transition text-xs sm:text-sm cursor-pointer active:scale-95"
@@ -238,13 +238,25 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
               <span>Volver a Mis Listas</span>
             </button>
 
-            <button
-              onClick={() => setIsSongSelectorOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-md transition active:scale-95 cursor-pointer text-xs sm:text-sm"
-            >
-              <Plus size={16} strokeWidth={2.5} />
-              <span>Añadir Alabanza</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleDeleteSetlist(currentSetlist.id, currentSetlist.name)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 font-bold transition text-xs sm:text-sm cursor-pointer active:scale-95 border border-red-200 dark:border-red-900/50"
+                title="Eliminar esta lista completa"
+              >
+                <Trash2 size={15} />
+                <span>Eliminar Lista</span>
+              </button>
+
+              <button
+                onClick={() => setIsSongSelectorOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-md transition active:scale-95 cursor-pointer text-xs sm:text-sm"
+              >
+                <Plus size={16} strokeWidth={2.5} />
+                <span>Añadir Alabanza</span>
+              </button>
+            </div>
           </div>
 
           {/* Editable Title Section */}
@@ -571,14 +583,15 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
                     </span>
 
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteSetlist(list.id, list.name);
                       }}
-                      className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition cursor-pointer"
+                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition cursor-pointer active:scale-95"
                       title="Eliminar lista"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={17} />
                     </button>
                   </div>
 
