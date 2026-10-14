@@ -25,7 +25,7 @@ export function TonalGroupingView({ onSelectNote, onDeleteNote, notation }: Tona
   // 2. Agrupación Estricta usando la propiedad note.detectedKey guardada
   const groupedNotes = useMemo(() => {
     return notes.reduce((acc, note) => {
-      const key = note.detectedKey || 'Indeterminada';
+      const key = note.detectedKey || 'Sin tono';
       if (!acc[key]) acc[key] = [];
       acc[key].push(note);
       return acc;
@@ -47,7 +47,7 @@ export function TonalGroupingView({ onSelectNote, onDeleteNote, notation }: Tona
         return (
           <div key={rawKey} className="mb-10">
             <h2 className="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-2 flex items-baseline gap-2">
-              Tono {displayKey} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({groupNotes.length} {groupNotes.length === 1 ? 'canción' : 'canciones'})</span>
+              {displayKey === 'Sin tono' ? 'Sin tono' : `Tono ${displayKey}`} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({groupNotes.length} {groupNotes.length === 1 ? 'canción' : 'canciones'})</span>
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
               {groupNotes.map(note => (

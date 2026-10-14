@@ -1,4 +1,5 @@
 import { SongNote, SetlistItem } from '../../types/note';
+import { KeyDetector } from '../../domain/music/KeyDetector';
 
 export type { SetlistItem };
 
@@ -108,16 +109,43 @@ export const getAllNotes = (): SongNote[] => {
     const storage = getStorage();
     const raw = storage
       ? (storage.getItem(PRIMARY_STORAGE_KEY) || storage.getItem(LEGACY_STORAGE_KEY))
-      : null;
+      : (typeof window !== 'undefined' ? localStorage.getItem(PRIMARY_STORAGE_KEY) : null);
     if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map((note: SongNote) => ({
-      ...note,
-      activeInstrument: note.activeInstrument || 'keyboard'
-    }));
+    const notes: SongNote[] = JSON.parse(raw);
+    if (!Array.isArray(notes)) return [];
+
+    let hasChanges = false;
+    const reevaluatedNotes = notes.map(note => {
+      if (!note || typeof note !== 'object') return note;
+
+      // Calcular la tonalidad real con el nuevo motor armónico
+      const freshKey = KeyDetector.detectKey(note.content || '');
+
+      // Si la nota no tenía instrumento o si su tono guardado no coincide con el nuevo cálculo, actualizar
+      if (note.detectedKey !== freshKey || !note.activeInstrument) {
+        hasChanges = true;
+        return {
+          ...note,
+          activeInstrument: note.activeInstrument || 'keyboard',
+          detectedKey: freshKey
+        };
+      }
+      return note;
+    });
+
+    // Persistir las tonalidades corregidas en localStorage
+    if (hasChanges) {
+      if (storage) {
+        storage.setItem(PRIMARY_STORAGE_KEY, JSON.stringify(reevaluatedNotes));
+        storage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(reevaluatedNotes));
+      } else if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem(PRIMARY_STORAGE_KEY, JSON.stringify(reevaluatedNotes));
+      }
+    }
+
+    return reevaluatedNotes;
   } catch (err) {
-    console.warn("Storage read error on mobile device, using empty fallback", err);
+    console.error("Error reading notes from storage:", err);
     return [];
   }
 };
@@ -179,7 +207,7 @@ export const NoteStorageService = {
       const notes = this.getAll();
       if (!Array.isArray(notes)) return {};
       return notes.reduce((acc, note) => {
-        const key = note.detectedKey || 'Indeterminada';
+        const key = note.detectedKey || 'Sin tono';
         if (!acc[key]) acc[key] = [];
         acc[key].push(note);
         return acc;

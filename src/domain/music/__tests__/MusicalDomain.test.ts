@@ -69,7 +69,6 @@ describe('KeyDetector', () => {
         expect(detectKey(['C', 'E', 'G', 'F', 'C'])).toBe('C Mayor');
     });
 
-
     it('detects A Menor from specific sequence', () => {
         const text = "CCCDC BBBCB AAABAG#";
         expect(detectKey(text)).toBe('A Menor');
@@ -84,8 +83,25 @@ describe('KeyDetector', () => {
         expect(detectKey(textWithComments)).toBe('D Menor');
     });
 
-    it('returns Indeterminada for insufficient data', () => {
-        expect(detectKey("Hola mundo")).toBe('Indeterminada');
-        expect(detectKey([])).toBe('Indeterminada');
+    it('accurately detects "Al poderoso" as D Menor (English and Solfeo)', () => {
+        const alPoderosoEn = "D D A A G A C# C# D E F E D";
+        expect(detectKey(alPoderosoEn)).toBe('D Menor');
+
+        const alPoderosoSolfeo = "Re Re La La Sol La Do# Do# Re Mi Fa Mi Re";
+        expect(detectKey(alPoderosoSolfeo)).toBe('D Menor');
+    });
+
+    it('accurately detects "Cómo hizo David" as D Menor (English and Solfeo)', () => {
+        const davidEn = "A D D E D C A A E D";
+        expect(detectKey(davidEn)).toBe('D Menor');
+
+        const davidSolfeo = "La Re Re Mi Re Do La La Mi Re";
+        expect(detectKey(davidSolfeo)).toBe('D Menor');
+    });
+
+    it('returns Sin tono for empty or non-musical data', () => {
+        expect(detectKey("")).toBe('Sin tono');
+        expect(detectKey([])).toBe('Sin tono');
+        expect(detectKey("*comentario sin notas*")).toBe('Sin tono');
     });
 });

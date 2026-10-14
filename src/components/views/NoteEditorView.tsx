@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Check } from 'lucide-react';
 import { transposeText } from '../../domain/music/TranspositionEngine';
-import { detectKey } from '../../domain/music/KeyDetector';
+import { KeyDetector, detectKey } from '../../domain/music/KeyDetector';
 import { formatKeyName, NotationSystem } from '../../domain/music/NotationSystem';
 import { SongNote } from '../../types/note';
 import { NoteStorageService } from '../../services/storage/NoteStorageService';
@@ -35,7 +35,7 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     }
   }, [content]);
 
-  const currentKey = useMemo(() => detectKey(content), [content]);
+  const currentKey = useMemo(() => KeyDetector.detectKey(content), [content]);
   const formattedKey = useMemo(() => formatKeyName(currentKey, notation), [currentKey, notation]);
 
   const updateStateAndStorage = (newTitle: string, newContent: string, newInstrument: 'keyboard' | 'trumpet') => {
@@ -43,7 +43,7 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     setContent(newContent);
     setActiveInstrument(newInstrument);
 
-    const detectedKey = detectKey(newContent);
+    const detectedKey = KeyDetector.detectKey(newContent);
 
     const updated: SongNote = {
       ...note,
@@ -104,8 +104,8 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
       finalTitle = firstLine ? firstLine.substring(0, 30) : 'Canción sin título';
     }
 
-    // Detección tonal sobre el cuerpo completo usando detectKey(content) como fuente de verdad absoluta
-    const currentFullKey = detectKey(content);
+    // Detección tonal sobre el cuerpo completo usando KeyDetector.detectKey(content) como fuente de verdad absoluta
+    const currentFullKey = KeyDetector.detectKey(content);
 
     const noteToSave: SongNote = {
       id: note?.id || Date.now().toString(),

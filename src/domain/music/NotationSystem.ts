@@ -1,4 +1,4 @@
-import { SharpPitch, PITCH_CLASSES } from './PitchClass';
+import { SharpPitch, PITCH_CLASSES, normalizeToSharp } from './PitchClass';
 import { transposeKeyName } from './TranspositionEngine';
 
 export const NATURAL_CLASSES = ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'] as const;
@@ -7,7 +7,8 @@ export type NaturalPitch = typeof NATURAL_CLASSES[number];
 export type NotationSystem = 'en' | 'natural';
 
 export function toNatural(pitchEn: string): string {
-    const index = PITCH_CLASSES.indexOf(pitchEn as SharpPitch);
+    const normalized = normalizeToSharp(pitchEn) || pitchEn;
+    const index = PITCH_CLASSES.indexOf(normalized as SharpPitch);
     if (index === -1) return pitchEn;
     return NATURAL_CLASSES[index];
 }
@@ -19,7 +20,7 @@ export function toEnglish(pitchNat: string): string {
 }
 
 export function formatKeyName(keyName: string, system: NotationSystem): string {
-    if (!keyName || keyName === 'Indeterminada') return 'Indeterminada';
+    if (!keyName || keyName === 'Indeterminada' || keyName === 'Sin tono') return keyName || 'Sin tono';
     
     // keyName format: "C Mayor" or "D# Menor"
     const parts = keyName.split(' ');
@@ -41,7 +42,7 @@ export function formatKeyName(keyName: string, system: NotationSystem): string {
  * Solfège/Natural mode: "Lam / La Menor" or "Do / Do Mayor"
  */
 export function formatDualKeyDisplay(keyName: string, system: NotationSystem): string {
-    if (!keyName || keyName === 'Indeterminada') return 'Indeterminada';
+    if (!keyName || keyName === 'Indeterminada' || keyName === 'Sin tono') return keyName || 'Sin tono';
     
     const parts = keyName.split(' ');
     if (parts.length !== 2) return keyName;

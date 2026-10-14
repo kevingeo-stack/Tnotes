@@ -15,13 +15,13 @@ export function trumpetToKeyboard(pitch: SharpPitch): SharpPitch {
 }
 
 export function transposeKeyName(keyName: string, semitones: number): string {
-    if (!keyName || keyName === 'Indeterminada') return 'Indeterminada';
+    if (!keyName || keyName === 'Indeterminada' || keyName === 'Sin tono') return keyName || 'Sin tono';
     const parts = keyName.split(' ');
     if (parts.length !== 2) return keyName;
-    const root = parts[0] as SharpPitch;
+    const normalizedRoot = normalizeToSharp(parts[0]) || (parts[0] as SharpPitch);
     const mode = parts[1];
     
-    const currentIndex = PITCH_CLASSES.indexOf(root);
+    const currentIndex = PITCH_CLASSES.indexOf(normalizedRoot);
     if (currentIndex === -1) return keyName;
 
     const newIndex = (((currentIndex + semitones) % 12) + 12) % 12;

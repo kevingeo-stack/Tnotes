@@ -19,7 +19,7 @@ const createEmptyNote = (): SongNote => ({
   title: '',
   content: '',
   activeInstrument: 'keyboard',
-  detectedKey: 'Indeterminada',
+  detectedKey: 'Sin tono',
   updatedAt: Date.now()
 });
 

@@ -103,6 +103,39 @@ describe('Setlist & Persistent Transposition State', () => {
       expect(savedInStorage[0].activeInstrument).toBe('keyboard');
     });
 
+    it('automatically re-evaluates outdated keys for songs like "Al poderoso" and "Cómo hizo David" on getAllNotes', () => {
+      // Simulate stored notes that previously had wrong key detections
+      const storedNotes = [
+        {
+          id: 'song-1',
+          title: 'Al poderoso',
+          content: 'D D A A G A C# C# D E F E D',
+          detectedKey: 'A Mayor', // previously wrong
+          activeInstrument: 'keyboard',
+          updatedAt: 1600000000000
+        },
+        {
+          id: 'song-2',
+          title: 'Cómo hizo David',
+          content: 'A D D E D C A A E D',
+          detectedKey: 'A Menor', // previously wrong
+          activeInstrument: 'keyboard',
+          updatedAt: 1600000000000
+        }
+      ];
+      localStorageMock.setItem('trumpet_notes_data', JSON.stringify(storedNotes));
+
+      const reevaluated = getAllNotes();
+      expect(reevaluated.length).toBe(2);
+      expect(reevaluated[0].detectedKey).toBe('D Menor');
+      expect(reevaluated[1].detectedKey).toBe('D Menor');
+
+      // Verify that corrected keys were persisted back to storage
+      const inStorage = JSON.parse(localStorageMock.getItem('trumpet_notes_data') || '[]');
+      expect(inStorage[0].detectedKey).toBe('D Menor');
+      expect(inStorage[1].detectedKey).toBe('D Menor');
+    });
+
     it('purges empty notes with no content and empty title via sanitizeEmptyNotes', () => {
       const mixedNotes = [
         { id: 'valid-1', title: 'Canción 1', content: 'C D E', activeInstrument: 'keyboard', detectedKey: 'C', updatedAt: Date.now() },
