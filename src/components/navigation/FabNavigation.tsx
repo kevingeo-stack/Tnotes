@@ -46,13 +46,15 @@ export function FabNavigation({ currentView, onViewChange, onNewNote, isDarkMode
         </button>
       </div>
 
-      <button
-        onClick={onNewNote}
-        className="w-14 h-14 flex items-center justify-center rounded-full bg-amber-500 text-white shadow-xl hover:bg-amber-600 hover:scale-105 active:scale-95 transition transform cursor-pointer"
-        title="Nueva Nota"
-      >
-        <Plus size={28} />
-      </button>
+      {currentView !== 'setlist' && (
+        <button
+          onClick={onNewNote}
+          className="w-14 h-14 flex items-center justify-center rounded-full bg-amber-500 text-white shadow-xl hover:bg-amber-600 hover:scale-105 active:scale-95 transition transform cursor-pointer"
+          title="Nueva Nota"
+        >
+          <Plus size={28} />
+        </button>
+      )}
     </div>
   );
 }

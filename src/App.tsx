@@ -28,6 +28,7 @@ export default function App() {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [notation, setNotation] = useState<NotationSystem>('en');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [isInsideSetlist, setIsInsideSetlist] = useState(false);
 
   useEffect(() => {
     try {
@@ -228,6 +229,7 @@ export default function App() {
               key={`setlist-${refreshTrigger}`}
               onOpenNoteInEditor={handleSelectNote}
               notation={notation}
+              onActiveListChange={setIsInsideSetlist}
             />
           )}
           {currentView === 'grouping' && (
@@ -246,21 +248,23 @@ export default function App() {
           )}
         </div>
 
-        {/* MOBILE FAB */}
-        <div className="lg:hidden">
-          <FabNavigation 
-            currentView={currentView}
-            onViewChange={(view) => {
-              setCurrentView(view);
-              if (view === 'grouping' || view === 'setlist') {
-                setRefreshTrigger(v => v + 1);
-              }
-            }}
-            onNewNote={handleNewNote}
-            isDarkMode={isDarkMode}
-            toggleDarkMode={toggleDarkMode}
-          />
-        </div>
+        {/* MOBILE FAB: Oculto completamente mientras se está dentro de una lista para no tapar controles ni notas */}
+        {!(currentView === 'setlist' && isInsideSetlist) && (
+          <div className="lg:hidden">
+            <FabNavigation 
+              currentView={currentView}
+              onViewChange={(view) => {
+                setCurrentView(view);
+                if (view === 'grouping' || view === 'setlist') {
+                  setRefreshTrigger(v => v + 1);
+                }
+              }}
+              onNewNote={handleNewNote}
+              isDarkMode={isDarkMode}
+              toggleDarkMode={toggleDarkMode}
+            />
+          </div>
+        )}
         
       </main>
     </div>

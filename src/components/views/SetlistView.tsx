@@ -23,9 +23,10 @@ import { transposeKeyName } from '../../domain/music/TranspositionEngine';
 interface SetlistViewProps {
   onOpenNoteInEditor?: (note: SongNote) => void;
   notation: NotationSystem;
+  onActiveListChange?: (isInside: boolean) => void;
 }
 
-export function SetlistView({ onOpenNoteInEditor, notation }: SetlistViewProps) {
+export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }: SetlistViewProps) {
   // Navigation states: null = Estado 1 (Catálogo de Listas), string = Estado 2 (ID de Lista Seleccionada)
   const [selectedSetlistId, setSelectedSetlistId] = useState<string | null>(null);
 
@@ -42,6 +43,11 @@ export function SetlistView({ onOpenNoteInEditor, notation }: SetlistViewProps) 
   // Editing setlist title inline
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
+
+  // Notify parent if inside an active setlist
+  useEffect(() => {
+    onActiveListChange?.(selectedSetlistId !== null);
+  }, [selectedSetlistId, onActiveListChange]);
 
   // Load data on mount
   useEffect(() => {
@@ -237,7 +243,7 @@ export function SetlistView({ onOpenNoteInEditor, notation }: SetlistViewProps) 
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-md transition active:scale-95 cursor-pointer text-xs sm:text-sm"
             >
               <Plus size={16} strokeWidth={2.5} />
-              <span>+ Añadir Canciones</span>
+              <span>Añadir Alabanza</span>
             </button>
           </div>
 
@@ -303,7 +309,7 @@ export function SetlistView({ onOpenNoteInEditor, notation }: SetlistViewProps) 
               className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-md transition active:scale-95 cursor-pointer"
             >
               <Plus size={18} strokeWidth={2.5} />
-              <span>Añadir Canciones a esta Lista</span>
+              <span>Añadir Alabanza</span>
             </button>
           </div>
         ) : (
@@ -517,7 +523,7 @@ export function SetlistView({ onOpenNoteInEditor, notation }: SetlistViewProps) 
           className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-lg transition active:scale-95 cursor-pointer shrink-0"
         >
           <Plus size={20} strokeWidth={2.5} />
-          <span>+ Nueva Lista</span>
+          <span>Nueva Lista</span>
         </button>
       </div>
 
@@ -538,7 +544,7 @@ export function SetlistView({ onOpenNoteInEditor, notation }: SetlistViewProps) 
             className="flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-md transition active:scale-95 cursor-pointer"
           >
             <Plus size={20} strokeWidth={2.5} />
-            <span>+ Crear Mi Primera Lista</span>
+            <span>Crear Mi Primera Lista</span>
           </button>
         </div>
       ) : (
