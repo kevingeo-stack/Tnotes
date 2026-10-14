@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, List, Music, Moon, Sun, ListMusic } from 'lucide-react';
+import { Plus, List, Music, ListMusic } from 'lucide-react';
 
 export type ViewState = 'editor' | 'grouping' | 'pitch-space' | 'setlist';
 
@@ -7,22 +7,14 @@ interface FabNavigationProps {
   currentView: ViewState;
   onViewChange: (view: ViewState) => void;
   onNewNote: () => void;
-  isDarkMode: boolean;
-  toggleDarkMode: () => void;
+  isDarkMode?: boolean;
+  toggleDarkMode?: () => void;
 }
 
-export function FabNavigation({ currentView, onViewChange, onNewNote, isDarkMode, toggleDarkMode }: FabNavigationProps) {
+export function FabNavigation({ currentView, onViewChange, onNewNote }: FabNavigationProps) {
   return (
     <div className="absolute bottom-6 right-6 flex flex-col items-center gap-4 z-50">
       <div className="flex flex-col gap-3">
-        {/* Único botón de tema (Sol / Luna) en la botonera vertical */}
-        <button
-          onClick={toggleDarkMode}
-          className="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-[#28292A] text-gray-700 dark:text-[#E8EAED] shadow-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition cursor-pointer"
-          title="Alternar Modo Oscuro"
-        >
-          {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
         <button
           onClick={() => onViewChange('setlist')}
           className={`w-10 h-10 flex items-center justify-center rounded-full shadow-lg border transition cursor-pointer ${currentView === 'setlist' ? 'bg-amber-500 text-white border-amber-600' : 'bg-white dark:bg-[#28292A] text-gray-700 dark:text-[#E8EAED] border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'}`}

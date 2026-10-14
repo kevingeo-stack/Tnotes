@@ -27,7 +27,7 @@ class RootErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-neutral-900 text-white flex flex-col items-center justify-center p-6 text-center">
-          <h2 className="text-xl font-bold text-amber-500 mb-2">TrumpetNotes</h2>
+          <h2 className="text-xl font-bold text-amber-500 mb-2">TNotes</h2>
           <p className="text-sm text-neutral-400 mb-4">Se presentó un problema al inicializar en este dispositivo.</p>
           <button
             onClick={() => {

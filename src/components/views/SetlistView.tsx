@@ -428,7 +428,7 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
                 {filteredLibraryNotes.length === 0 ? (
                   <div className="text-center py-10 text-gray-500 dark:text-gray-400 text-sm">
                     {allNotes.length === 0 
-                      ? 'No hay canciones en la biblioteca de TrumpetNotes todavía.' 
+                      ? 'No hay canciones en la biblioteca de TNotes todavía.' 
                       : 'No se encontraron alabanzas con esa búsqueda.'}
                   </div>
                 ) : (

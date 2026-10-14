@@ -1,6 +1,6 @@
 {
-  "name": "TrumpetNotes",
-  "short_name": "TrumpetNotes",
+  "name": "TNotes",
+  "short_name": "TNotes",
   "description": "Bloc de notas para trompeta y teclado con transposición cromática y detección tonal",
   "start_url": "./",
   "scope": "./",

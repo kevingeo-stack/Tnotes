@@ -5,6 +5,7 @@ import { NoteEditorView } from './components/views/NoteEditorView';
 import { TonalGroupingView } from './components/views/TonalGroupingView';
 import { PitchSpaceView } from './components/views/PitchSpaceView';
 import { SetlistView } from './components/views/SetlistView';
+import { PwaInstallButton } from './components/common/PwaInstallButton';
 import { SongNote } from './types/note';
 import { NoteStorageService, sanitizeLegacyNotes, sanitizeEmptyNotes } from './services/storage/NoteStorageService';
 import { NotationSystem } from './domain/music/NotationSystem';
@@ -137,10 +138,11 @@ export default function App() {
       
       {/* SIDEBAR DESKTOP */}
       <aside className="hidden lg:flex flex-col w-72 bg-white dark:bg-[#28292A] border-r border-gray-200 dark:border-gray-800 shrink-0 z-10 transition-colors">
-        <div className="p-6 pb-2">
+        <div className="p-6 pb-2 flex items-center justify-between">
           <h1 className="text-2xl font-bold flex items-center gap-2 text-amber-600 dark:text-amber-500">
-            <span className="text-3xl">🎺</span> TrumpetNotes
+            <span className="text-3xl">🎺</span> TNotes
           </h1>
+          <PwaInstallButton />
         </div>
 
         <div className="px-4 py-4">
@@ -192,9 +194,10 @@ export default function App() {
         {/* MOBILE HEADER */}
         <header className="lg:hidden flex items-center justify-between bg-white dark:bg-[#28292A] border-b border-gray-200 dark:border-gray-800 p-4 shrink-0 z-10 transition-colors">
           <h1 className="text-xl font-bold flex items-center gap-2 text-amber-600 dark:text-amber-500">
-            <span>🎺</span> TrumpetNotes
+            <span>🎺</span> TNotes
           </h1>
           <div className="flex items-center gap-2">
+            <PwaInstallButton />
             <button 
               onClick={toggleNotation}
               className="px-3 py-1.5 bg-gray-100 dark:bg-[#1F1F1F] rounded-full text-xs font-bold text-gray-700 dark:text-gray-300 transition active:scale-95 flex items-center gap-1.5 cursor-pointer"
