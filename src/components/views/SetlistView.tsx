@@ -17,7 +17,6 @@ import { SongNote, Setlist } from '../../types/note';
 import { NoteStorageService } from '../../services/storage/NoteStorageService';
 import { getAllSetlists, saveSetlist, deleteSetlist, Setlist } from '../../services/storage/SetlistStorageService';
 import { formatDualKeyDisplay, NotationSystem } from '../../domain/music/NotationSystem';
-import { detectKey } from '../../domain/music/KeyDetector';
 import { transposeKeyName } from '../../domain/music/TranspositionEngine';
 import { ConfirmModal } from '../common/ConfirmModal';
 

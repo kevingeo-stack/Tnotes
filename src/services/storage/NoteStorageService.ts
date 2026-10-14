@@ -119,7 +119,7 @@ export const getAllNotes = (): SongNote[] => {
       if (!note || typeof note !== 'object') return note;
 
       const detected = KeyDetector.detectKey(note.content || '');
-      const correctKey = detected.formatted;
+      const correctKey = detected.key || detected.formatted;
 
       if (note.detectedKey !== correctKey || !note.activeInstrument) {
         hasUpdates = true;
@@ -163,8 +163,12 @@ export const NoteStorageService = {
       const notes = this.getAll();
       const existingIndex = notes.findIndex(n => n.id === note.id);
       
+      const detected = KeyDetector.detectKey(note.content || '');
+      const correctKey = detected.key || detected.formatted || note.detectedKey;
+
       const noteToSave: SongNote = {
         ...note,
+        detectedKey: correctKey,
         activeInstrument: note.activeInstrument || 'keyboard'
       };
 

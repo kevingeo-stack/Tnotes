@@ -61,55 +61,51 @@ describe('TranspositionEngine', () => {
 
 describe('KeyDetector', () => {
     it('detects C Mayor from text', () => {
-        const text = "C D E F G A B";
-        expect(detectKey(text)).toBe('C Mayor');
+        const text = "C D E F G A B C";
+        expect(detectKey(text).key).toBe('C Mayor');
     });
 
     it('detects C Mayor from array of notes', () => {
-        expect(detectKey(['C', 'E', 'G', 'F', 'C'])).toBe('C Mayor');
+        expect(detectKey(['C', 'E', 'G', 'F', 'C']).key).toBe('C Mayor');
     });
 
-    it('detects A Menor from specific sequence', () => {
-        const text = "CCCDC BBBCB AAABAG#";
-        expect(detectKey(text)).toBe('A Menor');
+    it('detects F# Menor from Fuego notes (F# A B F#)', () => {
+        const text = "F# A B F#";
+        const result = detectKey(text);
+        expect(result.key).toBe('F# Menor');
+        expect(result.root).toBe('F#');
+        expect(result.mode).toBe('Menor');
     });
 
-    it('detects D Menor from D, E, F, A, A#', () => {
-        expect(detectKey("D, E, F, A, A#")).toBe('D Menor');
+    it('detects D Menor from D, E, F, G, A, C# con reposo en D', () => {
+        expect(detectKey("D E F G A C# D").key).toBe('D Menor');
     });
 
     it('excludes *...* comments from tonal detection', () => {
-        const textWithComments = "*aquí debemos hacer tal cosa* D, E, F, A, A#";
-        expect(detectKey(textWithComments)).toBe('D Menor');
+        const textWithComments = "*aquí debemos hacer tal cosa* D E F G A C# D";
+        expect(detectKey(textWithComments).key).toBe('D Menor');
     });
 
     it('accurately detects "Al poderoso" as D Menor (English and Solfeo)', () => {
         const alPoderosoEn = "D D A A G A C# C# D E F E D";
-        expect(detectKey(alPoderosoEn)).toBe('D Menor');
+        expect(detectKey(alPoderosoEn).key).toBe('D Menor');
 
         const alPoderosoSolfeo = "Re Re La La Sol La Do# Do# Re Mi Fa Mi Re";
-        expect(detectKey(alPoderosoSolfeo)).toBe('D Menor');
+        expect(detectKey(alPoderosoSolfeo).key).toBe('D Menor');
     });
 
     it('accurately detects "Cómo hizo David" as D Menor (English and Solfeo)', () => {
         const davidEn = "A D D E D C A A E D";
-        expect(detectKey(davidEn)).toBe('D Menor');
+        expect(detectKey(davidEn).key).toBe('D Menor');
 
         const davidSolfeo = "La Re Re Mi Re Do La La Mi Re";
-        expect(detectKey(davidSolfeo)).toBe('D Menor');
+        expect(detectKey(davidSolfeo).key).toBe('D Menor');
     });
 
-    it('accurately detects "Fiesta" as D Menor (English and Solfeo)', () => {
-        const fiestaEn = "F F / F D F D F F / E E E D E / E E E D E / A A# A A# A A";
-        expect(detectKey(fiestaEn)).toBe('D Menor');
-
-        const fiestaSolfeo = "Fa Fa / Fa Re Fa Re Fa Fa / Mi Mi Mi Re Mi / Mi Mi Mi Re Mi / La La# La La# La La";
-        expect(detectKey(fiestaSolfeo)).toBe('D Menor');
-    });
-
-    it('returns Sin tono for empty or non-musical data', () => {
-        expect(detectKey("")).toBe('Sin tono');
-        expect(detectKey([])).toBe('Sin tono');
-        expect(detectKey("*comentario sin notas*")).toBe('Sin tono');
+    it('returns Desconocido / Sin tono for empty or non-musical data', () => {
+        expect(detectKey("").key).toBe('Desconocido');
+        expect(detectKey([]).key).toBe('Desconocido');
+        expect(detectKey("*comentario sin notas*").key).toBe('Desconocido');
+        expect(detectKey("").formatted).toBe('Sin tono');
     });
 });

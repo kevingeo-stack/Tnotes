@@ -35,7 +35,10 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     }
   }, [content]);
 
-  const currentKey = useMemo(() => KeyDetector.detectKey(content).formatted, [content]);
+  const currentKey = useMemo(() => {
+    const res = KeyDetector.detectKey(content);
+    return res.key || res.formatted;
+  }, [content]);
   const formattedKey = useMemo(() => formatKeyName(currentKey, notation), [currentKey, notation]);
 
   const updateStateAndStorage = (newTitle: string, newContent: string, newInstrument: 'keyboard' | 'trumpet') => {
@@ -43,7 +46,8 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     setContent(newContent);
     setActiveInstrument(newInstrument);
 
-    const detectedKey = KeyDetector.detectKey(newContent).formatted;
+    const detected = KeyDetector.detectKey(newContent);
+    const detectedKey = detected.key || detected.formatted;
 
     const updated: SongNote = {
       ...note,
@@ -112,7 +116,7 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
       title: finalTitle,
       content: content,
       activeInstrument: activeInstrument || 'keyboard',
-      detectedKey: keyResult.formatted, // Fuente de verdad absoluta
+      detectedKey: keyResult.key || keyResult.formatted, // Fuente de verdad absoluta
       updatedAt: Date.now()
     };
 

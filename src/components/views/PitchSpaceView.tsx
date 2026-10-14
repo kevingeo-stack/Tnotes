@@ -18,7 +18,8 @@ export function PitchSpaceView({ activeNote, notation }: PitchSpaceViewProps) {
     const concertContent = activeNote.activeInstrument === 'trumpet'
       ? transposeText(activeNote.content, 'TRUMPET_TO_KEYBOARD')
       : activeNote.content;
-    return detectKey(concertContent);
+    const res = detectKey(concertContent);
+    return res.key || res.formatted;
   }, [activeNote.detectedKey, activeNote.content, activeNote.activeInstrument]);
 
   const activeScaleNotes = useMemo(() => {

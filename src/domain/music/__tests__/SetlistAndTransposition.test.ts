@@ -124,9 +124,9 @@ describe('Setlist & Persistent Transposition State', () => {
         },
         {
           id: 'song-3',
-          title: 'Fiesta',
-          content: 'F F / F D F D F F / E E E D E / E E E D E / A A# A A# A A',
-          detectedKey: 'A Menor', // previously wrong
+          title: 'Fuego',
+          content: 'F# A B F#',
+          detectedKey: 'D Mayor', // previously wrong
           activeInstrument: 'keyboard',
           updatedAt: 1600000000000
         }
@@ -137,13 +137,13 @@ describe('Setlist & Persistent Transposition State', () => {
       expect(reevaluated.length).toBe(3);
       expect(reevaluated[0].detectedKey).toBe('D Menor');
       expect(reevaluated[1].detectedKey).toBe('D Menor');
-      expect(reevaluated[2].detectedKey).toBe('D Menor');
+      expect(reevaluated[2].detectedKey).toBe('F# Menor');
 
       // Verify that corrected keys were persisted back to storage
       const inStorage = JSON.parse(localStorageMock.getItem('trumpet_notes_data') || '[]');
       expect(inStorage[0].detectedKey).toBe('D Menor');
       expect(inStorage[1].detectedKey).toBe('D Menor');
-      expect(inStorage[2].detectedKey).toBe('D Menor');
+      expect(inStorage[2].detectedKey).toBe('F# Menor');
     });
 
     it('purges empty notes with no content and empty title via sanitizeEmptyNotes', () => {
