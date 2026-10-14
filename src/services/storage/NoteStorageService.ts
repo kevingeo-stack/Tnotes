@@ -114,27 +114,26 @@ export const getAllNotes = (): SongNote[] => {
     const notes: SongNote[] = JSON.parse(raw);
     if (!Array.isArray(notes)) return [];
 
-    let hasChanges = false;
+    let hasUpdates = false;
     const reevaluatedNotes = notes.map(note => {
       if (!note || typeof note !== 'object') return note;
 
-      // Calcular la tonalidad real con el nuevo motor armónico
-      const freshKey = KeyDetector.detectKey(note.content || '');
+      const detected = KeyDetector.detectKey(note.content || '');
+      const correctKey = detected.formatted;
 
-      // Si la nota no tenía instrumento o si su tono guardado no coincide con el nuevo cálculo, actualizar
-      if (note.detectedKey !== freshKey || !note.activeInstrument) {
-        hasChanges = true;
+      if (note.detectedKey !== correctKey || !note.activeInstrument) {
+        hasUpdates = true;
         return {
           ...note,
           activeInstrument: note.activeInstrument || 'keyboard',
-          detectedKey: freshKey
+          detectedKey: correctKey
         };
       }
       return note;
     });
 
     // Persistir las tonalidades corregidas en localStorage
-    if (hasChanges) {
+    if (hasUpdates) {
       if (storage) {
         storage.setItem(PRIMARY_STORAGE_KEY, JSON.stringify(reevaluatedNotes));
         storage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(reevaluatedNotes));

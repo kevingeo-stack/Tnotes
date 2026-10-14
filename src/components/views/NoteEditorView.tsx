@@ -35,7 +35,7 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     }
   }, [content]);
 
-  const currentKey = useMemo(() => KeyDetector.detectKey(content), [content]);
+  const currentKey = useMemo(() => KeyDetector.detectKey(content).formatted, [content]);
   const formattedKey = useMemo(() => formatKeyName(currentKey, notation), [currentKey, notation]);
 
   const updateStateAndStorage = (newTitle: string, newContent: string, newInstrument: 'keyboard' | 'trumpet') => {
@@ -43,7 +43,7 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     setContent(newContent);
     setActiveInstrument(newInstrument);
 
-    const detectedKey = KeyDetector.detectKey(newContent);
+    const detectedKey = KeyDetector.detectKey(newContent).formatted;
 
     const updated: SongNote = {
       ...note,
@@ -105,14 +105,14 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     }
 
     // Detección tonal sobre el cuerpo completo usando KeyDetector.detectKey(content) como fuente de verdad absoluta
-    const currentFullKey = KeyDetector.detectKey(content);
+    const keyResult = KeyDetector.detectKey(content);
 
     const noteToSave: SongNote = {
       id: note?.id || Date.now().toString(),
       title: finalTitle,
       content: content,
       activeInstrument: activeInstrument || 'keyboard',
-      detectedKey: currentFullKey, // Fuente de verdad absoluta
+      detectedKey: keyResult.formatted, // Fuente de verdad absoluta
       updatedAt: Date.now()
     };
 
