@@ -51,6 +51,12 @@ describe('TranspositionEngine', () => {
         const transposedToKeyboard = transposeText(text, 'TRUMPET_TO_KEYBOARD');
         expect(transposedToKeyboard).toBe("La canción está en D#, luego cambia G G#. B m");
     });
+
+    it('preserves *...* comments intact during transposition', () => {
+        const text = "D E F *aquí debemos hacer tal cosa* A A#";
+        const transposed = transposeText(text, 'KEYBOARD_TO_TRUMPET');
+        expect(transposed).toBe("E F# G *aquí debemos hacer tal cosa* B C");
+    });
 });
 
 describe('KeyDetector', () => {
@@ -71,6 +77,11 @@ describe('KeyDetector', () => {
 
     it('detects D Menor from D, E, F, A, A#', () => {
         expect(detectKey("D, E, F, A, A#")).toBe('D Menor');
+    });
+
+    it('excludes *...* comments from tonal detection', () => {
+        const textWithComments = "*aquí debemos hacer tal cosa* D, E, F, A, A#";
+        expect(detectKey(textWithComments)).toBe('D Menor');
     });
 
     it('returns Indeterminada for insufficient data', () => {

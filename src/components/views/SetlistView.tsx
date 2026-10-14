@@ -27,6 +27,26 @@ interface SetlistViewProps {
   onActiveListChange?: (isInside: boolean) => void;
 }
 
+export function renderFormattedMusicContent(rawContent: string) {
+  if (!rawContent) return <span>(Sin notas)</span>;
+
+  // Segmentos delimitados por *...* se estilizan como anotaciones de guía
+  const parts = rawContent.split(/(\*[^*]*\*?)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith('*')) {
+      return (
+        <span
+          key={index}
+          className="text-sm font-sans italic font-normal text-neutral-400 dark:text-neutral-500 mx-1 select-text"
+        >
+          {part}
+        </span>
+      );
+    }
+    return <span key={index}>{part}</span>;
+  });
+}
+
 export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }: SetlistViewProps) {
   // Navigation states: null = Estado 1 (Catálogo de Listas), string = Estado 2 (ID de Lista Seleccionada)
   const [selectedSetlistId, setSelectedSetlistId] = useState<string | null>(null);
@@ -388,9 +408,9 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
 
                       {/* NOTAS MUSICALES (Elemento Dominante de la Pantalla) */}
                       <div className="mt-1">
-                        <pre className="text-xl md:text-2xl font-mono font-bold tracking-wide leading-relaxed text-amber-600 dark:text-amber-400 whitespace-pre-wrap select-none break-words">
-                          {song.content || '(Sin notas)'}
-                        </pre>
+                        <div className="text-xl md:text-2xl font-mono font-bold tracking-wide leading-relaxed text-amber-600 dark:text-amber-400 whitespace-pre-wrap select-none break-words">
+                          {renderFormattedMusicContent(song.content)}
+                        </div>
                       </div>
                     </div>
                   ))}

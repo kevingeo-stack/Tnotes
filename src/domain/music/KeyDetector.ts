@@ -29,6 +29,12 @@ function pearsonCorrelation(x: number[], y: number[]): number {
     return numerator / denominator;
 }
 
+export const cleanMusicContent = (rawText: string): string => {
+    if (!rawText) return '';
+    // Elimina todo lo que esté entre asteriscos: *comentario* o *comentario sin cerrar
+    return rawText.replace(/\*[^*]*\*?/g, ' ');
+};
+
 export function detectKey(input: string | string[]): string {
     const frequencies: number[] = new Array(12).fill(0);
     let totalNotes = 0;
@@ -45,10 +51,14 @@ export function detectKey(input: string | string[]): string {
 
     if (Array.isArray(input)) {
         for (const token of input) {
-            processMatch(token);
+            const sanitized = cleanMusicContent(token);
+            if (sanitized.trim()) {
+                processMatch(sanitized.trim());
+            }
         }
     } else {
-        const cleanInput = input.replace(/♯/g, '#').replace(/♭/g, 'b');
+        const sanitized = cleanMusicContent(input);
+        const cleanInput = sanitized.replace(/♯/g, '#').replace(/♭/g, 'b');
         
         // Detect Latin solfège notes if present
         const latinRegex = /\b(Do|Re|Mi|Fa|Sol|So|La|Si|Ti)([#b])?(\d+)?\b/gi;

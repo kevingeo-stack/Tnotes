@@ -29,13 +29,22 @@ export function transposeKeyName(keyName: string, semitones: number): string {
 }
 
 export function transposeText(text: string, direction: 'KEYBOARD_TO_TRUMPET' | 'TRUMPET_TO_KEYBOARD'): string {
-    return text.replace(NOTE_REGEX, (match) => {
-        const normalized = normalizeToSharp(match);
-        if (normalized) {
-            return direction === 'KEYBOARD_TO_TRUMPET' 
-                ? keyboardToTrumpet(normalized) 
-                : trumpetToKeyboard(normalized);
+    if (!text) return '';
+    return text.split(/(\*[^*]*\*?)/g).map(part => {
+        if (part.startsWith('*')) {
+            return part; // Mantener comentario intacto
         }
-        return match;
-    });
+        return part.replace(NOTE_REGEX, (match) => {
+            const normalized = normalizeToSharp(match);
+            if (normalized) {
+                return direction === 'KEYBOARD_TO_TRUMPET' 
+                    ? keyboardToTrumpet(normalized) 
+                    : trumpetToKeyboard(normalized);
+            }
+            return match;
+        });
+    }).join('');
 }
+
+export const transposeSongText = transposeText;
+
