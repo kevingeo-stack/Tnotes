@@ -19,6 +19,7 @@ import { getAllSetlists, saveSetlist, deleteSetlist, Setlist } from '../../servi
 import { formatDualKeyDisplay, NotationSystem } from '../../domain/music/NotationSystem';
 import { detectKey } from '../../domain/music/KeyDetector';
 import { transposeKeyName } from '../../domain/music/TranspositionEngine';
+import { ConfirmModal } from '../common/ConfirmModal';
 
 interface SetlistViewProps {
   onOpenNoteInEditor?: (note: SongNote) => void;
@@ -59,6 +60,7 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
   const [newListName, setNewListName] = useState('');
   const [isSongSelectorOpen, setIsSongSelectorOpen] = useState(false);
   const [songSearchQuery, setSongSearchQuery] = useState('');
+  const [listToDelete, setListToDelete] = useState<string | null>(null);
 
   // Editing setlist title inline
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -249,11 +251,7 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  deleteSetlist(currentSetlist.id);
-                  setSetlists(getAllSetlists());
-                  setSelectedSetlistId(null);
-                }}
+                onClick={() => setListToDelete(currentSetlist.id)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 font-bold transition text-xs sm:text-sm cursor-pointer active:scale-95 border border-red-200 dark:border-red-900/50"
                 title="Eliminar esta lista completa"
               >
@@ -522,6 +520,23 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
             </div>
           </div>
         )}
+
+        {/* Modal de Confirmación: Eliminar Lista */}
+        <ConfirmModal
+          isOpen={!!listToDelete}
+          title="Eliminar lista"
+          onCancel={() => setListToDelete(null)}
+          onConfirm={() => {
+            if (listToDelete) {
+              deleteSetlist(listToDelete);
+              setSetlists(prev => prev.filter(l => l.id !== listToDelete));
+              if (selectedSetlistId === listToDelete) {
+                setSelectedSetlistId(null);
+              }
+              setListToDelete(null);
+            }
+          }}
+        />
       </div>
     );
   }
@@ -597,12 +612,8 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
                     <button
                       type="button"
                       onClick={(e) => {
-                        e.stopPropagation();
-                        deleteSetlist(list.id);
-                        setSetlists(prev => prev.filter(l => l.id !== list.id));
-                        if (selectedSetlistId === list.id) {
-                          setSelectedSetlistId(null);
-                        }
+                        e.stopPropagation(); // Evita abrir la lista al tocar el basurero
+                        setListToDelete(list.id);
                       }}
                       className="p-2 text-neutral-400 hover:text-red-500 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                       title="Eliminar lista"
@@ -671,6 +682,22 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
         </div>
       )}
 
+      {/* Modal de Confirmación: Eliminar Lista */}
+      <ConfirmModal
+        isOpen={!!listToDelete}
+        title="Eliminar lista"
+        onCancel={() => setListToDelete(null)}
+        onConfirm={() => {
+          if (listToDelete) {
+            deleteSetlist(listToDelete);
+            setSetlists(prev => prev.filter(l => l.id !== listToDelete));
+            if (selectedSetlistId === listToDelete) {
+              setSelectedSetlistId(null);
+            }
+            setListToDelete(null);
+          }
+        }}
+      />
     </div>
   );
 }

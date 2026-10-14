@@ -2,7 +2,7 @@ import React from 'react';
 
 interface ConfirmModalProps {
   isOpen: boolean;
-  title: 'Eliminar lista' | 'Eliminar canción';
+  title: string; // "Eliminar canción" o "Eliminar lista"
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -24,7 +24,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         className="w-full max-w-xs bg-white dark:bg-[#1E1E1E] rounded-2xl p-6 shadow-2xl border border-neutral-200 dark:border-neutral-800 text-center flex flex-col items-center gap-5"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-lg font-bold text-neutral-800 dark:text-neutral-100">
+        <h3 className="text-base md:text-lg font-bold text-neutral-800 dark:text-neutral-100">
           {title}
         </h3>
 
@@ -39,7 +39,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           <button
             type="button"
             onClick={onConfirm}
-            className="flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold text-white bg-red-600 hover:bg-red-700 active:scale-95 transition-all shadow-md cursor-pointer"
+            className="flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold text-white bg-red-600 hover:bg-red-700 active:scale-95 transition-all shadow-sm cursor-pointer"
           >
             Aceptar
           </button>
