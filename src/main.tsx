@@ -13,14 +13,14 @@ interface State {
 }
 
 class RootErrorBoundary extends Component<Props, State> {
-  public state: State = { hasError: false };
+  public state: State = { hasError: false, errorText: undefined };
 
   public static getDerivedStateFromError(error: Error): State {
     return { hasError: true, errorText: error.message };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("Uncaught runtime error:", error, errorInfo);
+    console.error("Runtime error caught safely:", error, errorInfo);
   }
 
   public render() {
@@ -28,20 +28,21 @@ class RootErrorBoundary extends Component<Props, State> {
       return (
         <div className="min-h-screen bg-neutral-900 text-white flex flex-col items-center justify-center p-6 text-center">
           <h2 className="text-xl font-bold text-amber-500 mb-2">TNotes</h2>
-          <p className="text-sm text-neutral-400 mb-4">Se presentó un problema al inicializar en este dispositivo.</p>
-          <button
-            onClick={() => {
-              try {
-                localStorage.clear();
-              } catch {
-                // Ignore storage clear error
-              }
-              window.location.reload();
-            }}
-            className="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-lg text-sm font-semibold cursor-pointer"
-          >
-            Restablecer y Recargar
-          </button>
+          <p className="text-sm text-neutral-400 mb-6 max-w-xs">
+            Ocurrió un problema temporal al cargar la vista. Tus canciones y listas están a salvo.
+          </p>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                // Solo recarga la aplicación, NUNCA borra localStorage
+                window.location.reload();
+              }}
+              className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl text-sm shadow-md active:scale-95 transition-all cursor-pointer"
+            >
+              Recargar Aplicación
+            </button>
+          </div>
         </div>
       );
     }

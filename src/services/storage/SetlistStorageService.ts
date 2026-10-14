@@ -2,9 +2,6 @@ import { Setlist } from '../../types/note';
 
 export type { Setlist };
 
-const SETLISTS_STORAGE_KEY = 'trumpet_setlists_data_v1';
-const LEGACY_SETLIST_KEY = 'tnotes_setlist_v1';
-
 const getStorage = (): Storage | null => {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -19,120 +16,87 @@ const getStorage = (): Storage | null => {
   }
 };
 
-export const SetlistStorageService = {
-  getAll(): Setlist[] {
-    try {
-      const storage = getStorage();
-      if (!storage) return [];
+export const getAllSetlists = (): Setlist[] => {
+  try {
+    const storage = getStorage();
+    if (!storage) return [];
 
-      const data = storage.getItem(SETLISTS_STORAGE_KEY);
-      if (data) {
-        const parsed = JSON.parse(data);
-        if (Array.isArray(parsed)) {
-          return (parsed as Setlist[]).sort((a, b) => b.updatedAt - a.updatedAt);
-        }
-      }
-
-      // Check if legacy single-setlist exists to auto-migrate into first list
-      const legacyRaw = storage.getItem(LEGACY_SETLIST_KEY);
-      if (legacyRaw) {
-        try {
-          const legacyItems = JSON.parse(legacyRaw) as { noteId: string; order: number }[];
-          if (Array.isArray(legacyItems) && legacyItems.length > 0) {
-            const initialList: Setlist = {
-              id: 'setlist-default',
-              name: 'Lista de Alabanzas Principal',
-              songIds: legacyItems.sort((a, b) => a.order - b.order).map(i => i.noteId),
-              updatedAt: Date.now()
-            };
-            this.save(initialList);
-            return [initialList];
-          }
-        } catch {
-          // Ignore legacy format parsing error
-        }
-      }
-
-      return [];
-    } catch (e) {
-      console.warn('Storage read error for setlists on mobile device, using empty fallback', e);
-      return [];
+    let raw = storage.getItem('trumpet_setlists_data');
+    if (!raw) {
+      raw = storage.getItem('trumpet_setlists_data_v1');
     }
-  },
+    if (!raw) return [];
 
-  getById(id: string): Setlist | undefined {
-    try {
-      const all = this.getAll();
-      return all.find(s => s.id === id);
-    } catch (e) {
-      console.warn('Error finding setlist by id on mobile device', e);
-      return undefined;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .filter(item => item && typeof item === 'object')
+      .map(item => ({
+        id: item.id || Date.now().toString(),
+        name: (item.name || '').trim() || 'Lista sin título',
+        songIds: Array.isArray(item.songIds) ? item.songIds : [],
+        updatedAt: item.updatedAt || Date.now()
+      }))
+      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  } catch (e) {
+    console.error("Error reading setlists from localStorage:", e);
+    return [];
+  }
+};
+
+export const saveSetlist = (setlist: Setlist): void => {
+  try {
+    const storage = getStorage();
+    if (!storage) return;
+
+    const current = getAllSetlists();
+    const safeSetlist: Setlist = {
+      id: setlist.id || Date.now().toString(),
+      name: (setlist.name || '').trim() || 'Lista sin título',
+      songIds: Array.isArray(setlist.songIds) ? setlist.songIds : [],
+      updatedAt: setlist.updatedAt || Date.now()
+    };
+
+    const idx = current.findIndex(s => s.id === safeSetlist.id);
+    let updated: Setlist[];
+    if (idx >= 0) {
+      updated = [...current];
+      updated[idx] = safeSetlist;
+    } else {
+      updated = [safeSetlist, ...current];
     }
-  },
 
-  save(setlist: Setlist): void {
-    try {
-      const storage = getStorage();
-      if (!storage) return;
-
-      const all = this.getAll();
-      const existingIndex = all.findIndex(s => s.id === setlist.id);
-      
-      const toSave: Setlist = {
-        ...setlist,
-        updatedAt: Date.now()
-      };
-
-      if (existingIndex >= 0) {
-        all[existingIndex] = toSave;
-      } else {
-        all.unshift(toSave);
-      }
-
-      all.sort((a, b) => b.updatedAt - a.updatedAt);
-      storage.setItem(SETLISTS_STORAGE_KEY, JSON.stringify(all));
-    } catch (e) {
-      console.warn('Failed to save setlist to storage on mobile device', e);
-    }
-  },
-
-  delete(id: string): void {
-    try {
-      const storage = getStorage();
-      if (!storage) return;
-
-      const all = this.getAll().filter(s => s.id !== id);
-      storage.setItem(SETLISTS_STORAGE_KEY, JSON.stringify(all));
-
-      const raw = storage.getItem('trumpet_setlists_data');
-      if (raw) {
-        const lists = JSON.parse(raw);
-        if (Array.isArray(lists)) {
-          const filtered = lists.filter((item: any) => item.id !== id);
-          storage.setItem('trumpet_setlists_data', JSON.stringify(filtered));
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to delete setlist from storage on mobile device', e);
-    }
+    updated.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    const json = JSON.stringify(updated);
+    storage.setItem('trumpet_setlists_data', json);
+    storage.setItem('trumpet_setlists_data_v1', json);
+  } catch (e) {
+    console.error("Error saving setlist:", e);
   }
 };
 
 export const deleteSetlist = (id: string): void => {
   try {
-    SetlistStorageService.delete(id);
     const storage = getStorage();
     if (!storage) return;
-    const raw = storage.getItem('trumpet_setlists_data');
-    if (raw) {
-      const lists = JSON.parse(raw);
-      if (Array.isArray(lists)) {
-        const filtered = lists.filter((item: any) => item.id !== id);
-        storage.setItem('trumpet_setlists_data', JSON.stringify(filtered));
-      }
-    }
-  } catch (err) {
-    console.error("Error al eliminar la lista:", err);
+
+    const current = getAllSetlists();
+    const updated = current.filter(s => s.id !== id);
+    const json = JSON.stringify(updated);
+    storage.setItem('trumpet_setlists_data', json);
+    storage.setItem('trumpet_setlists_data_v1', json);
+  } catch (e) {
+    console.error("Error deleting setlist:", e);
   }
+};
+
+export const SetlistStorageService = {
+  getAll: getAllSetlists,
+  getById(id: string): Setlist | undefined {
+    return getAllSetlists().find(s => s.id === id);
+  },
+  save: saveSetlist,
+  delete: deleteSetlist
 };
 

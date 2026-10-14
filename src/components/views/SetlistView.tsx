@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { SongNote, Setlist } from '../../types/note';
 import { NoteStorageService } from '../../services/storage/NoteStorageService';
-import { SetlistStorageService, deleteSetlist } from '../../services/storage/SetlistStorageService';
+import { getAllSetlists, saveSetlist, deleteSetlist, Setlist } from '../../services/storage/SetlistStorageService';
 import { formatDualKeyDisplay, NotationSystem } from '../../domain/music/NotationSystem';
 import { detectKey } from '../../domain/music/KeyDetector';
 import { transposeKeyName } from '../../domain/music/TranspositionEngine';
@@ -75,7 +75,7 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
   }, []);
 
   const loadData = () => {
-    const loadedSetlists = SetlistStorageService.getAll();
+    const loadedSetlists = getAllSetlists();
     const loadedNotes = NoteStorageService.getAll();
     setSetlists(loadedSetlists);
     setAllNotes(loadedNotes);
@@ -95,24 +95,20 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
     }
   }, [currentSetlist?.id]);
 
-  // Handle creating a new setlist
-  const handleCreateSetlist = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const trimmed = newListName.trim();
-    const name = trimmed || `Servicio ${new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' })}`;
-    
-    const newSetlist: Setlist = {
-      id: `setlist-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-      name: name,
+  // Handle creating a new setlist cleanly without prompt
+  const handleConfirmCreate = () => {
+    const finalName = newListName.trim() || `Lista ${setlists.length + 1}`;
+    const newList: Setlist = {
+      id: Date.now().toString(),
+      name: finalName,
       songIds: [],
       updatedAt: Date.now()
     };
-
-    SetlistStorageService.save(newSetlist);
-    setSetlists(SetlistStorageService.getAll());
+    saveSetlist(newList);
+    setSetlists(getAllSetlists());
+    setSelectedSetlistId(newList.id); // Abre la lista recién creada
     setNewListName('');
     setIsCreateModalOpen(false);
-    setSelectedSetlistId(newSetlist.id); // Navigate directly to the new list
   };
 
   // Handle saving inline edited title
@@ -125,8 +121,8 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
         name: trimmed,
         updatedAt: Date.now()
       };
-      SetlistStorageService.save(updated);
-      setSetlists(SetlistStorageService.getAll());
+      saveSetlist(updated);
+      setSetlists(getAllSetlists());
     }
     setIsEditingTitle(false);
   };
@@ -148,8 +144,8 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
       updatedAt: Date.now()
     };
 
-    SetlistStorageService.save(updated);
-    setSetlists(SetlistStorageService.getAll());
+    saveSetlist(updated);
+    setSetlists(getAllSetlists());
   };
 
   // Remove song directly from current setlist
@@ -160,8 +156,8 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
       songIds: currentSetlist.songIds.filter(id => id !== noteId),
       updatedAt: Date.now()
     };
-    SetlistStorageService.save(updated);
-    setSetlists(SetlistStorageService.getAll());
+    saveSetlist(updated);
+    setSetlists(getAllSetlists());
   };
 
   // Calculate concert key for any song note
@@ -169,27 +165,30 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
     if (note.detectedKey && note.detectedKey !== 'Indeterminada') {
       return note.detectedKey;
     }
-    let detected = detectKey(note.content);
-    if (detected === 'Indeterminada') return 'Indeterminada';
+    let detected = detectKey(note.content || '');
+    if (detected === 'Indeterminada') return 'Sin tono';
     if (note.activeInstrument === 'trumpet') {
       detected = transposeKeyName(detected, -2);
     }
-    return detected;
+    return detected || 'Sin tono';
   };
+
+  // Defensive validation of songs in active setlist
+  const validSongs = useMemo(() => {
+    if (!currentSetlist) return [];
+    return (currentSetlist.songIds || [])
+      .map(id => allNotes.find(n => n && n.id === id))
+      .filter((s): s is SongNote => Boolean(s && s.id));
+  }, [currentSetlist, allNotes]);
 
   // Group songs of the current setlist by detected key (Strict Tonal Grouping)
   const tonalGroups = useMemo(() => {
-    if (!currentSetlist) return [];
-
-    // Map songIds to actual SongNote objects in order
-    const orderedNotes = currentSetlist.songIds
-      .map(id => allNotes.find(n => n.id === id))
-      .filter((n): n is SongNote => n !== undefined);
+    if (!currentSetlist || validSongs.length === 0) return [];
 
     // Group preserving sequential overall index
     const groupMap = new Map<string, { song: SongNote; overallIndex: number }[]>();
     
-    orderedNotes.forEach((song, idx) => {
+    validSongs.forEach((song, idx) => {
       const key = getConcertKeyForNote(song);
       if (!groupMap.has(key)) {
         groupMap.set(key, []);
@@ -216,7 +215,7 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
     });
 
     return groups;
-  }, [currentSetlist, allNotes, notation]);
+  }, [currentSetlist, validSongs, notation]);
 
   // Filter notes for the Add Songs modal
   const filteredLibraryNotes = useMemo(() => {
@@ -232,7 +231,7 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
   // ESTADO 2: VISOR Y EDITOR DE LA LISTA SELECCIONADA (AGRUPACIÓN TONAL)
   // =========================================================================
   if (currentSetlist) {
-    const totalSongsInList = currentSetlist.songIds.length;
+    const totalSongsInList = validSongs.length;
 
     return (
       <div className="w-full mx-auto p-3 sm:p-5 pb-28 max-w-5xl animate-in fade-in duration-150">
@@ -250,7 +249,11 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setListToDelete(currentSetlist.id)}
+                onClick={() => {
+                  deleteSetlist(currentSetlist.id);
+                  setSetlists(getAllSetlists());
+                  setSelectedSetlistId(null);
+                }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 font-bold transition text-xs sm:text-sm cursor-pointer active:scale-95 border border-red-200 dark:border-red-900/50"
                 title="Eliminar esta lista completa"
               >
@@ -314,23 +317,23 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
         </div>
 
         {/* Empty State in Estado 2 */}
-        {totalSongsInList === 0 ? (
+        {validSongs.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 px-4 bg-white dark:bg-[#28292A] rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-700 text-center shadow-xs">
             <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4">
               <Music size={32} />
             </div>
             <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">
-              Esta lista no tiene canciones aún
+              Esta lista está vacía
             </h3>
             <p className="text-gray-500 dark:text-gray-400 max-w-md mb-6 text-sm">
-              Agrega las alabanzas que tocarán en este servicio. Se agruparán automáticamente por tonalidad con sus notas completas.
+              Esta lista está vacía. Toca '+ Añadir Canciones' para seleccionar de tu biblioteca.
             </p>
             <button
               onClick={() => setIsSongSelectorOpen(true)}
               className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-md transition active:scale-95 cursor-pointer"
             >
               <Plus size={18} strokeWidth={2.5} />
-              <span>Añadir Alabanza</span>
+              <span>+ Añadir Canciones</span>
             </button>
           </div>
         ) : (
@@ -519,14 +522,6 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
             </div>
           </div>
         )}
-
-        {/* Modal: Confirmar Eliminación de Lista */}
-        <ConfirmModal 
-          isOpen={!!listToDelete} 
-          title="Eliminar lista" 
-          onCancel={() => setListToDelete(null)}
-          onConfirm={handleDeleteConfirm}
-        />
       </div>
     );
   }
@@ -637,57 +632,41 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
         </div>
       )}
 
-      {/* Modal: Crear Nueva Lista */}
+      {/* Mini-Modal: Crear Nueva Lista */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
           <div 
-            className="bg-white dark:bg-[#28292A] rounded-3xl border border-gray-200 dark:border-gray-700 w-full max-w-md p-6 shadow-2xl"
+            className="w-full max-w-xs bg-white dark:bg-[#1E1E1E] rounded-2xl p-6 shadow-2xl border border-neutral-200 dark:border-neutral-800 flex flex-col gap-4"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                <Sparkles size={20} className="text-amber-500" />
-                Nueva Lista de Alabanzas
-              </h2>
+            <h3 className="text-base font-bold text-neutral-800 dark:text-neutral-100 text-center">
+              Nueva Lista de Alabanzas
+            </h3>
+            <input
+              type="text"
+              value={newListName}
+              onChange={(e) => setNewListName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleConfirmCreate()}
+              placeholder="Ej. Servicio Domingo"
+              autoFocus
+              className="w-full px-3 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+            <div className="flex gap-2">
               <button
-                onClick={() => setIsCreateModalOpen(false)}
-                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition cursor-pointer"
+                type="button"
+                onClick={() => { setIsCreateModalOpen(false); setNewListName(''); }}
+                className="flex-1 py-2 rounded-xl text-sm font-semibold text-neutral-600 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 transition-colors cursor-pointer"
               >
-                <X size={18} />
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCreate}
+                className="flex-1 py-2 rounded-xl text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 transition-colors shadow-sm cursor-pointer"
+              >
+                Crear
               </button>
             </div>
-
-            <form onSubmit={handleCreateSetlist} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-                  Nombre del servicio o reunión:
-                </label>
-                <input
-                  type="text"
-                  placeholder="ej. Servicio Domingo 10 AM"
-                  value={newListName}
-                  onChange={e => setNewListName(e.target.value)}
-                  autoFocus
-                  className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-[#202124] border border-gray-200 dark:border-gray-700 outline-none text-base text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:border-amber-500 transition"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 font-semibold text-sm transition cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-md transition active:scale-95 cursor-pointer"
-                >
-                  Crear Lista
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}
