@@ -15,7 +15,8 @@ import {
 } from 'lucide-react';
 import { SongNote, Setlist } from '../../types/note';
 import { NoteStorageService } from '../../services/storage/NoteStorageService';
-import { getAllSetlists, saveSetlist, deleteSetlist, Setlist } from '../../services/storage/SetlistStorageService';
+import { getAllSetlists, saveSetlist, deleteSetlist } from '../../services/storage/SetlistStorageService';
+import { KeyDetector } from '../../domain/music/KeyDetector';
 import { formatDualKeyDisplay, NotationSystem } from '../../domain/music/NotationSystem';
 import { transposeKeyName } from '../../domain/music/TranspositionEngine';
 import { ConfirmModal } from '../common/ConfirmModal';
@@ -163,11 +164,12 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
 
   // Calculate concert key for any song note
   const getConcertKeyForNote = (note: SongNote): string => {
-    if (note.detectedKey && note.detectedKey !== 'Indeterminada') {
+    if (note.detectedKey && note.detectedKey !== 'Indeterminada' && note.detectedKey !== 'Desconocido') {
       return note.detectedKey;
     }
-    let detected = detectKey(note.content || '');
-    if (detected === 'Indeterminada') return 'Sin tono';
+    const detectedResult = KeyDetector.detectKey(note.content || '');
+    let detected = detectedResult.key || detectedResult.formatted;
+    if (detected === 'Indeterminada' || detected === 'Desconocido' || !detectedResult.root) return 'Sin tono';
     if (note.activeInstrument === 'trumpet') {
       detected = transposeKeyName(detected, -2);
     }
