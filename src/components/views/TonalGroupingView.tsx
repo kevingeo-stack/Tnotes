@@ -44,10 +44,19 @@ export function TonalGroupingView({ onSelectNote, onDeleteNote, notation }: Tona
 
       {Object.entries(groupedNotes).sort((a, b) => a[0].localeCompare(b[0])).map(([rawKey, groupNotes]) => {
         const displayKey = formatKeyName(rawKey, notation);
+        const concertKeySample = groupNotes[0]?.concertKey ? formatKeyName(groupNotes[0].concertKey, notation) : null;
         return (
           <div key={rawKey} className="mb-10">
-            <h2 className="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-2 flex items-baseline gap-2">
-              {displayKey === 'Sin tono' ? 'Sin tono' : `Tono ${displayKey}`} <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({groupNotes.length} {groupNotes.length === 1 ? 'canción' : 'canciones'})</span>
+            <h2 className="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-2 flex flex-wrap items-baseline gap-2.5">
+              <span>{displayKey === 'Sin tono' ? 'Sin tono' : `🎺 Trompeta: ${displayKey}`}</span>
+              {concertKeySample && concertKeySample !== 'Sin tono' && (
+                <span className="text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2.5 py-0.5 rounded-full border border-blue-200 dark:border-blue-900/40">
+                  🎹 Teclado: {concertKeySample}
+                </span>
+              )}
+              <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
+                ({groupNotes.length} {groupNotes.length === 1 ? 'canción' : 'canciones'})
+              </span>
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
               {groupNotes.map(note => (
@@ -87,7 +96,10 @@ export function TonalGroupingView({ onSelectNote, onDeleteNote, notation }: Tona
                     {renderFormattedMusicContent(note.content)}
                   </div>
                   <div className="mt-3 text-xs text-gray-400 dark:text-gray-500 flex justify-between items-center">
-                    <span>{new Date(note.updatedAt).toLocaleDateString()}</span>
+                    <span className="truncate">
+                      {note.concertKey && note.concertKey !== 'Sin tono' ? `🎹 ${formatKeyName(note.concertKey, notation)}` : ''}
+                    </span>
+                    <span className="shrink-0">{new Date(note.updatedAt).toLocaleDateString()}</span>
                   </div>
                 </div>
               ))}

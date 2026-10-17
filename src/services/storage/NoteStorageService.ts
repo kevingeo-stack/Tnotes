@@ -114,26 +114,26 @@ export const getAllNotes = (): SongNote[] => {
     const notes: SongNote[] = JSON.parse(raw);
     if (!Array.isArray(notes)) return [];
 
-    let hasUpdates = false;
+    let hasChanges = false;
     const reevaluatedNotes = notes.map(note => {
       if (!note || typeof note !== 'object') return note;
 
-      const detected = KeyDetector.detectKey(note.content || '');
-      const correctKey = detected.key || detected.formatted;
+      const keyResult = KeyDetector.detectKey(note.content || '');
+      const freshKey = keyResult.trumpetKey; // Guardar clave de trompeta estandarizada
 
-      if (note.detectedKey !== correctKey || !note.activeInstrument) {
-        hasUpdates = true;
+      if (!note.detectedKey || note.detectedKey === 'Sin tono' || note.detectedKey === 'Tono desconocido' || note.detectedKey === 'Desconocido' || note.detectedKey !== freshKey || !note.concertKey) {
+        hasChanges = true;
         return {
           ...note,
           activeInstrument: note.activeInstrument || 'keyboard',
-          detectedKey: correctKey
+          detectedKey: freshKey,
+          concertKey: keyResult.concertKey
         };
       }
       return note;
     });
 
-    // Persistir las tonalidades corregidas en localStorage
-    if (hasUpdates) {
+    if (hasChanges) {
       if (storage) {
         storage.setItem(PRIMARY_STORAGE_KEY, JSON.stringify(reevaluatedNotes));
         storage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(reevaluatedNotes));
@@ -144,7 +144,7 @@ export const getAllNotes = (): SongNote[] => {
 
     return reevaluatedNotes;
   } catch (err) {
-    console.error("Error reading notes from storage:", err);
+    console.error("Error reading notes:", err);
     return [];
   }
 };
@@ -163,12 +163,14 @@ export const NoteStorageService = {
       const notes = this.getAll();
       const existingIndex = notes.findIndex(n => n.id === note.id);
       
-      const detected = KeyDetector.detectKey(note.content || '');
-      const correctKey = detected.key || detected.formatted || note.detectedKey;
+      const keyResult = KeyDetector.detectKey(note.content || '');
+      const freshKey = keyResult.trumpetKey !== 'Sin tono' ? keyResult.trumpetKey : (note.detectedKey || 'Sin tono');
+      const concertKey = keyResult.concertKey !== 'Sin tono' ? keyResult.concertKey : (note.concertKey || 'Sin tono');
 
       const noteToSave: SongNote = {
         ...note,
-        detectedKey: correctKey,
+        detectedKey: freshKey,
+        concertKey: concertKey,
         activeInstrument: note.activeInstrument || 'keyboard'
       };
 

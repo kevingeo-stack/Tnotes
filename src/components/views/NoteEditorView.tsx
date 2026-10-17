@@ -54,27 +54,34 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     }
   }, [content]);
 
-  // Detección tonal estable: reconoce la tonalidad y preserva la referencia guardada si no hay notas
-  const currentKey = useMemo(() => {
-    const res = KeyDetector.detectKey(content);
-    if (res.key && res.key !== 'Desconocido' && res.key !== 'Sin tono') {
-      return res.key;
+  // Detección tonal dual (Trompeta / Teclado)
+  const dualKeyResult = useMemo(() => {
+    const res = KeyDetector.detectKey(content, notationStyle);
+    if (res.trumpetKey && res.trumpetKey !== 'Sin tono') {
+      return res;
     }
-    if (note.detectedKey && note.detectedKey !== 'Sin tono' && note.detectedKey !== 'Indeterminada' && note.detectedKey !== 'Desconocido') {
-      return note.detectedKey;
+    if (note.detectedKey && note.detectedKey !== 'Sin tono' && note.detectedKey !== 'Tono desconocido' && note.detectedKey !== 'Desconocido') {
+      const trumpetK = note.detectedKey;
+      const concertK = note.concertKey || trumpetK;
+      return {
+        trumpetKey: trumpetK,
+        concertKey: concertK,
+        formatted: `🎺 ${trumpetK} | 🎹 ${concertK}`,
+        key: trumpetK,
+        root: trumpetK.split(' ')[0],
+        mode: trumpetK.includes('Menor') ? 'Menor' as const : 'Mayor' as const
+      };
     }
-    return res.key || res.formatted || 'Sin tono';
-  }, [content, note.detectedKey]);
+    return res;
+  }, [content, notationStyle, note.detectedKey, note.concertKey]);
 
-  const formattedKey = useMemo(() => {
-    const system: NotationSystem = notationStyle === 'LATIN' ? 'natural' : 'en';
-    return formatKeyName(currentKey, system);
-  }, [currentKey, notationStyle]);
+  const currentKey = dualKeyResult.trumpetKey;
 
   const handleToggleNotation = () => {
     const nextStyle = notationStyle === 'ENGLISH' ? 'LATIN' : 'ENGLISH';
     setNotationStyle(nextStyle);
     const translated = NotationTranslator.translateFullContent(content, nextStyle);
+    setContent(translated);
     updateStateAndStorage(title, translated, activeInstrument);
   };
 
@@ -127,8 +134,9 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     setContent(newContent);
     setActiveInstrument(newInstrument);
 
-    const detected = KeyDetector.detectKey(newContent);
-    const detectedKey = detected.key || detected.formatted;
+    const keyResult = KeyDetector.detectKey(newContent, notationStyle);
+    const detectedKey = keyResult.trumpetKey;
+    const concertKey = keyResult.concertKey;
 
     const updated: SongNote = {
       ...note,
@@ -136,6 +144,7 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
       content: newContent,
       activeInstrument: newInstrument,
       detectedKey,
+      concertKey,
       updatedAt: Date.now()
     };
     onNoteChange(updated);
@@ -189,15 +198,15 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
       finalTitle = firstLine ? firstLine.substring(0, 30) : 'Canción sin título';
     }
 
-    // Detección tonal sobre el cuerpo completo usando KeyDetector.detectKey(content) como fuente de verdad absoluta
-    const keyResult = KeyDetector.detectKey(content);
+    const keyResult = KeyDetector.detectKey(content, notationStyle);
 
     const noteToSave: SongNote = {
       id: note?.id || Date.now().toString(),
       title: finalTitle,
       content: content,
       activeInstrument: activeInstrument || 'keyboard',
-      detectedKey: keyResult.key || keyResult.formatted, // Fuente de verdad absoluta
+      detectedKey: keyResult.trumpetKey,
+      concertKey: keyResult.concertKey,
       updatedAt: Date.now()
     };
 
@@ -384,9 +393,20 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
         />
         
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          {/* Badge Tono Trompeta */}
           <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 px-3.5 py-1.5 rounded-full text-sm font-semibold shadow-sm flex items-center gap-2 border border-amber-200 dark:border-amber-800">
-            <span>{activeInstrument === 'keyboard' ? '🎹 Tono Teclado:' : '🎺 Tono Trompeta:'}</span>
-            <span className="bg-white dark:bg-[#1F1F1F] px-2 py-0.5 rounded-full">{formattedKey}</span>
+            <span>🎺 Trompeta:</span>
+            <span className="bg-white dark:bg-[#1F1F1F] px-2 py-0.5 rounded-full font-bold">
+              {dualKeyResult.trumpetKey}
+            </span>
+          </div>
+
+          {/* Badge Tono Teclado */}
+          <div className="bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-400 px-3.5 py-1.5 rounded-full text-sm font-semibold shadow-sm flex items-center gap-2 border border-blue-200 dark:border-blue-900/40">
+            <span>🎹 Teclado:</span>
+            <span className="bg-white dark:bg-[#1F1F1F] px-2 py-0.5 rounded-full font-bold">
+              {dualKeyResult.concertKey}
+            </span>
           </div>
 
           <button 

@@ -1,42 +1,44 @@
 export type NotationStyle = 'ENGLISH' | 'LATIN';
 
-const ENG_TO_LAT: Record<string, string> = {
-  'C#': 'Do#', 'DB': 'Reb', 'C': 'Do',
-  'D#': 'Re#', 'EB': 'Mib', 'D': 'Re',
-  'E': 'Mi',
-  'F#': 'Fa#', 'GB': 'Solb', 'F': 'Fa',
-  'G#': 'Sol#', 'AB': 'Lab', 'G': 'Sol',
-  'A#': 'La#', 'BB': 'Sib', 'A': 'La',
-  'B': 'Si'
-};
+// Reemplazos ordenados para evitar colisiones (ej. Do# antes que Do)
+const MAPPING_ENG_TO_LAT: Array<[RegExp, string]> = [
+  [/\bC#/gi, 'Do#'], [/\bDb/gi, 'Reb'], [/\bC\b/gi, 'Do'],
+  [/\bD#/gi, 'Re#'], [/\bEb/gi, 'Mib'], [/\bD\b/gi, 'Re'],
+  [/\bE#/gi, 'Mi#'], [/\bE\b/gi, 'Mi'],
+  [/\bF#/gi, 'Fa#'], [/\bGb/gi, 'Solb'], [/\bF\b/gi, 'Fa'],
+  [/\bG#/gi, 'Sol#'], [/\bAb/gi, 'Lab'], [/\bG\b/gi, 'Sol'],
+  [/\bA#/gi, 'La#'], [/\bBb/gi, 'Sib'], [/\bA\b/gi, 'La'],
+  [/\bB#/gi, 'Si#'], [/\bB\b/gi, 'Si']
+];
 
-const LAT_TO_ENG: Record<string, string> = {
-  'DO#': 'C#', 'REB': 'Db', 'DO': 'C',
-  'RE#': 'D#', 'MIB': 'Eb', 'RE': 'D',
-  'MI': 'E',
-  'FA#': 'F#', 'SOLB': 'Gb', 'FA': 'F',
-  'SOL#': 'G#', 'LAB': 'Ab', 'SOL': 'G',
-  'LA#': 'A#', 'SIB': 'Bb', 'LA': 'A',
-  'SI': 'B'
-};
+const MAPPING_LAT_TO_ENG: Array<[RegExp, string]> = [
+  [/\bDo#/gi, 'C#'], [/\bReb/gi, 'Db'], [/\bDo\b/gi, 'C'],
+  [/\bRe#/gi, 'D#'], [/\bMib/gi, 'Eb'], [/\bRe\b/gi, 'D'],
+  [/\bMi#/gi, 'E#'], [/\bMi\b/gi, 'E'],
+  [/\bFa#/gi, 'F#'], [/\bSolb/gi, 'Gb'], [/\bFa\b/gi, 'F'],
+  [/\bSol#/gi, 'G#'], [/\bLab/gi, 'Ab'], [/\bSol\b/gi, 'G'],
+  [/\bLa#/gi, 'A#'], [/\bSib/gi, 'Bb'], [/\bLa\b/gi, 'A'],
+  [/\bSi#/gi, 'B#'], [/\bSi\b/gi, 'B']
+];
 
 export class NotationTranslator {
   public static translateFullContent(text: string, targetStyle: NotationStyle): string {
     if (!text) return text;
 
-    // Respetar comentarios entre asteriscos (*...*)
     return text.split(/(\*[^*]*\*?)/g).map(part => {
-      if (part.startsWith('*')) return part; // Mantener comentarios intactos
+      if (part.startsWith('*')) return part; // No tocar anotaciones entre asteriscos
 
+      let translated = part;
       if (targetStyle === 'LATIN') {
-        return part.replace(/(?<![a-zA-Z])(C#|Db|C|D#|Eb|D|E|F#|Gb|F|G#|Ab|G|A#|Bb|A|B)(?![a-zA-Z#b])/gi, match => {
-          return ENG_TO_LAT[match.toUpperCase()] || match;
+        MAPPING_ENG_TO_LAT.forEach(([regex, replacement]) => {
+          translated = translated.replace(regex, replacement);
         });
       } else {
-        return part.replace(/(?<![a-zA-Z])(Do#|Reb|Do|Re#|Mib|Re|Mi|Fa#|Solb|Fa|Sol#|Lab|Sol|La#|Sib|La|Si)(?![a-zA-Z#b])/gi, match => {
-          return LAT_TO_ENG[match.toUpperCase()] || match;
+        MAPPING_LAT_TO_ENG.forEach(([regex, replacement]) => {
+          translated = translated.replace(regex, replacement);
         });
       }
+      return translated;
     }).join('');
   }
 

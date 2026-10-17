@@ -1,143 +1,144 @@
-export interface KeyDetectionResult {
-  key: string;
-  root: string;
+export interface DualKeyResult {
+  trumpetKey: string;     // Ej: "D Menor" / "Re Menor"
+  concertKey: string;     // Ej: "C Menor" / "Do Menor" (2 semitonos abajo)
+  formatted: string;      // Ej: "🎺 D Menor | 🎹 C Menor"
+  key: string;            // Para retrocompatibilidad (= trumpetKey)
+  name: string;           // Para retrocompatibilidad (= trumpetKey)
+  concertEquivalent: string; // Para retrocompatibilidad (= concertKey)
+  confidence: number;     // Para retrocompatibilidad (= 1 o 0)
+  root: string;           // Tónica
   mode: 'Mayor' | 'Menor';
-  formatted: string;
-  name: string;
-  concertEquivalent: string;
-  confidence: number;
 }
 
-export const ALL_SHARP_ROOTS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
+export type KeyDetectionResult = DualKeyResult;
+export type KeySignatureMatch = DualKeyResult;
 
-// Algoritmo determinista de detección de tonalidad melódica
-export function detectKey(notesText: string | string[] | any[]): KeyDetectionResult {
-  let rawText = '';
-  if (Array.isArray(notesText)) {
-    rawText = notesText
-      .map(n => (typeof n === 'string' ? n : n?.toEnglish ? n.toEnglish() : n?.name ? n.name : String(n)))
-      .join(' ');
-  } else if (typeof notesText === 'string') {
-    rawText = notesText;
-  }
+const PITCH_MAP: Record<string, number> = {
+  // Inglés
+  'C': 0, 'C#': 1, 'DB': 1, 'D': 2, 'D#': 3, 'EB': 3, 'E': 4, 'F': 5,
+  'F#': 6, 'GB': 6, 'G': 7, 'G#': 8, 'AB': 8, 'A': 9, 'A#': 10, 'BB': 10, 'B': 11,
+  // Solfeo Latino
+  'DO': 0, 'DO#': 1, 'REB': 1, 'RE': 2, 'RE#': 3, 'MIB': 3, 'MI': 4, 'FA': 5,
+  'FA#': 6, 'SOLB': 6, 'SOL': 7, 'SOL#': 8, 'LAB': 8, 'LA': 9, 'LA#': 10, 'SIB': 10, 'SI': 11
+};
 
-  // Pre-limpieza: comentarios de guía entre asteriscos (*...*) y normalización de sostenidos/bemoles unicode
-  const sanitized = rawText
-    .replace(/\*([^*]*)\*?/g, ' ')
-    .replace(/♯/g, '#')
-    .replace(/♭/g, 'b');
-
-  // Conversión de solfeo latino a cifrado inglés
-  const solfegeMap: Record<string, string> = {
-    'DO#': 'C#', 'REB': 'Db', 'DO': 'C',
-    'RE#': 'D#', 'MIB': 'Eb', 'RE': 'D',
-    'FA#': 'F#', 'SOLB': 'Gb', 'FA': 'F',
-    'SOL#': 'G#', 'LAB': 'Ab', 'SOL': 'G',
-    'LA#': 'A#', 'SIB': 'Bb', 'LA': 'A',
-    'SI': 'B', 'MI': 'E'
-  };
-
-  const converted = sanitized.replace(
-    /(?<![a-zA-Z])(DO#|REB|DO|RE#|MIB|RE|FA#|SOLB|FA|SOL#|LAB|SOL|LA#|SIB|LA|SI|MI)(?![a-zA-Z#b])/gi,
-    m => solfegeMap[m.toUpperCase()] || m
-  );
-
-  // 1. Extraer todas las notas válidas (A-G con posibles alteraciones # o b)
-  const matches = converted.match(/(?<![a-zA-Z])([A-G][#b]?)(?![a-zA-Z#b])/gi) || [];
-
-  if (matches.length === 0) {
-    return {
-      key: 'Desconocido',
-      root: '',
-      mode: 'Mayor',
-      formatted: 'Sin tono',
-      name: 'Sin tono',
-      concertEquivalent: 'Sin tono',
-      confidence: 0
-    };
-  }
-
-  // Normalización estricta a sostenidos estándar
-  const normalize = (n: string): string => {
-    const upper = n.toUpperCase();
-    const map: Record<string, string> = {
-      'BB': 'A#', 'DB': 'C#', 'EB': 'D#', 'GB': 'F#', 'AB': 'G#',
-      'C#': 'C#', 'D#': 'D#', 'F#': 'F#', 'G#': 'G#', 'A#': 'A#',
-      'C': 'C', 'D': 'D', 'E': 'E', 'F': 'F', 'G': 'G', 'A': 'A', 'B': 'B'
-    };
-    return map[upper] || upper;
-  };
-  const notes = matches.map(normalize);
-
-  // 2. Determinar la Tónica candidata (Root)
-  // Se prioriza la nota de resolución final y la nota con mayor peso/frecuencia
-  const lastNote = notes[notes.length - 1];
-  const counts: Record<string, number> = {};
-  notes.forEach((n, idx) => {
-    counts[n] = (counts[n] || 0) + 1;
-    if (idx === notes.length - 1) counts[n] += 2; // Peso extra a la nota final de reposo
-    if (idx === 0) counts[n] += 1;                // Peso a la nota de entrada
-  });
-
-  // Nota con mayor puntaje como tónica
-  let root = lastNote;
-  let maxScore = 0;
-  for (const [note, score] of Object.entries(counts)) {
-    if (score > maxScore || (score === maxScore && note === lastNote)) {
-      maxScore = score;
-      root = note;
-    }
-  }
-
-  // 3. Evaluar Modo (Mayor vs Menor) con base en la 3ª a partir de la tónica
-  const chromatic = ALL_SHARP_ROOTS;
-  const rootIdx = chromatic.indexOf(root as any);
-  const safeRootIdx = rootIdx !== -1 ? rootIdx : 0;
-  const minorThird = chromatic[(safeRootIdx + 3) % 12];
-  const majorThird = chromatic[(safeRootIdx + 4) % 12];
-
-  let mode: 'Mayor' | 'Menor' = 'Menor'; // Default en este repertorio
-  const hasMinor = notes.includes(minorThird);
-  const hasMajor = notes.includes(majorThird);
-
-  if (hasMajor && !hasMinor) {
-    mode = 'Mayor';
-  } else if (hasMinor) {
-    mode = 'Menor';
-  } else {
-    // Si no hay 3ª explícita, evaluar si la nota final es menor relativa
-    mode = 'Menor';
-  }
-
-  const key = `${root} ${mode}`;
-  return {
-    key,
-    root,
-    mode,
-    formatted: key,
-    name: key,
-    concertEquivalent: key,
-    confidence: 1
-  };
-}
+export const SHARP_NAMES_ENG = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+export const SHARP_NAMES_LAT = ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'];
+export const ALL_SHARP_ROOTS = SHARP_NAMES_ENG;
 
 export class KeyDetector {
-  public static detectKey(notes: string[] | string | any[]): KeyDetectionResult {
-    return detectKey(notes);
+  public static parsePitches(text: string | string[] | any): number[] {
+    if (!text) return [];
+    let raw = '';
+    if (Array.isArray(text)) {
+      raw = text.map(t => (typeof t === 'string' ? t : t?.name || t?.key || String(t))).join(' ');
+    } else if (typeof text === 'string') {
+      raw = text;
+    } else {
+      raw = String(text);
+    }
+
+    // Omitir anotaciones entre *asteriscos*
+    const clean = raw.replace(/(\*[^*]*\*?)/g, ' ');
+    const tokens = clean.toUpperCase().match(/(?<![A-Z])(DO[#B]?|RE[#B]?|MI|FA[#B]?|SOL[#B]?|LA[#B]?|SI[#B]?|[A-G][#B]?)(?![A-Z#B])/gi) || [];
+
+    const pitches: number[] = [];
+    tokens.forEach(tok => {
+      const idx = PITCH_MAP[tok.toUpperCase()];
+      if (idx !== undefined) pitches.push(idx);
+    });
+    return pitches;
   }
 
-  public static detect(notes: string[] | string | any[]): string {
-    return detectKey(notes).key;
+  public static detectKey(text: string | string[] | any, notationStyle: 'ENGLISH' | 'LATIN' = 'ENGLISH'): DualKeyResult {
+    const pitches = this.parsePitches(text);
+
+    if (pitches.length === 0) {
+      return {
+        trumpetKey: 'Sin tono',
+        concertKey: 'Sin tono',
+        formatted: 'Sin tono',
+        key: 'Desconocido',
+        name: 'Sin tono',
+        concertEquivalent: 'Sin tono',
+        confidence: 0,
+        root: '',
+        mode: 'Mayor'
+      };
+    }
+
+    const counts = new Array(12).fill(0);
+    pitches.forEach((p, idx) => {
+      counts[p]++;
+      if (idx === pitches.length - 1) counts[p] += 2; // Peso extra a la nota final de reposo
+      if (idx === 0) counts[p] += 1;                // Peso a la nota de entrada
+    });
+
+    const lastPitch = pitches[pitches.length - 1];
+    let bestScore = -Infinity;
+    let bestTonic = 2; // Default D
+    let bestMode: 'Mayor' | 'Menor' = 'Menor';
+
+    for (let root = 0; root < 12; root++) {
+      // Puntuación armónica menor
+      let scoreMin = counts[root] * 6.0 + counts[(root + 3) % 12] * 5.0 + counts[(root + 7) % 12] * 4.5 + counts[(root + 8) % 12] * 3.5;
+      scoreMin -= counts[(root + 4) % 12] * 18.0 + counts[(root + 1) % 12] * 15.0;
+      if (root === lastPitch) scoreMin += 4.0;
+
+      if (scoreMin > bestScore) {
+        bestScore = scoreMin;
+        bestTonic = root;
+        bestMode = 'Menor';
+      }
+
+      // Puntuación armónica mayor
+      let scoreMaj = counts[root] * 6.0 + counts[(root + 4) % 12] * 5.0 + counts[(root + 7) % 12] * 4.5;
+      scoreMaj -= counts[(root + 3) % 12] * 18.0 + counts[(root + 1) % 12] * 15.0;
+      if (counts[(root + 4) % 12] === 0) scoreMaj -= 12.0; // Penalización si carece de tercera mayor
+      if (root === lastPitch) scoreMaj += 4.0;
+
+      if (scoreMaj > bestScore) {
+        bestScore = scoreMaj;
+        bestTonic = root;
+        bestMode = 'Mayor';
+      }
+    }
+
+    // Tono en Teclado / Concierto (2 semitonos abajo que Trompeta)
+    const concertTonic = (bestTonic - 2 + 12) % 12;
+
+    const names = notationStyle === 'LATIN' ? SHARP_NAMES_LAT : SHARP_NAMES_ENG;
+
+    const trumpetKeyStr = `${names[bestTonic]} ${bestMode}`;
+    const concertKeyStr = `${names[concertTonic]} ${bestMode}`;
+
+    return {
+      trumpetKey: trumpetKeyStr,
+      concertKey: concertKeyStr,
+      formatted: `🎺 ${trumpetKeyStr} | 🎹 ${concertKeyStr}`,
+      key: trumpetKeyStr,
+      name: trumpetKeyStr,
+      concertEquivalent: concertKeyStr,
+      confidence: 1,
+      root: names[bestTonic],
+      mode: bestMode
+    };
   }
 
-  public static detectDetailed(notes: string[] | string | any[]): KeyDetectionResult {
-    return detectKey(notes);
+  public static detect(text: string | string[] | any, notationStyle: 'ENGLISH' | 'LATIN' = 'ENGLISH'): string {
+    return this.detectKey(text, notationStyle).trumpetKey;
+  }
+
+  public static detectDetailed(text: string | string[] | any, notationStyle: 'ENGLISH' | 'LATIN' = 'ENGLISH'): DualKeyResult {
+    return this.detectKey(text, notationStyle);
   }
 }
+
+export const detectKey = (text: string | string[] | any, notationStyle: 'ENGLISH' | 'LATIN' = 'ENGLISH'): DualKeyResult => {
+  return KeyDetector.detectKey(text, notationStyle);
+};
 
 export const cleanMusicContent = (rawText: string): string => {
   if (!rawText) return '';
-  return rawText.replace(/\*([^*]*)\*?/g, ' ');
+  return rawText.replace(/(\*[^*]*\*?)/g, ' ');
 };
-
-export type KeySignatureMatch = KeyDetectionResult;

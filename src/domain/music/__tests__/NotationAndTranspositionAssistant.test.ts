@@ -1,20 +1,22 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { NotationTranslator } from '../NotationTranslator';
 import { TranspositionEngine } from '../TranspositionEngine';
 import { KeyDetector, ALL_SHARP_ROOTS } from '../KeyDetector';
+import { getAllNotes } from '../../../services/storage/NoteStorageService';
+import { SongNote } from '../../../types/note';
 
-describe('NotationTranslator & Target Key Transposition Assistant', () => {
-  describe('NotationTranslator', () => {
-    it('translates English notes to Latin (Solfege) without modifying comments', () => {
-      const original = 'E F G *intro con trompeta C D* A# B';
+describe('NotationTranslator & Dual Key Detection Suite', () => {
+  describe('NotationTranslator Retroactive Translation', () => {
+    it('translates English notes including E# to Latin (Solfege) without modifying comments', () => {
+      const original = 'C D E# F *intro con C D* G A B';
       const translated = NotationTranslator.translateFullContent(original, 'LATIN');
-      expect(translated).toBe('Mi Fa Sol *intro con trompeta C D* La# Si');
+      expect(translated).toBe('Do Re Mi# Fa *intro con C D* Sol La Si');
     });
 
-    it('translates Latin notes to English without modifying comments', () => {
-      const latinText = 'Mi Fa Sol *solo Do Re* La# Si';
+    it('translates Latin notes including Mi# back to English without modifying comments', () => {
+      const latinText = 'Do Re Mi# Fa *solo Do Re* Sol La Si';
       const translated = NotationTranslator.translateFullContent(latinText, 'ENGLISH');
-      expect(translated).toBe('E F G *solo Do Re* A# B');
+      expect(translated).toBe('C D E# F *solo Do Re* G A B');
     });
 
     it('handles sharps and flats correctly in both directions', () => {
@@ -31,28 +33,86 @@ describe('NotationTranslator & Target Key Transposition Assistant', () => {
     });
   });
 
-  describe('KeyDetector Full Sharp Support & Robust Recognition', () => {
+  describe('KeyDetector Dual Key (Trumpet / Keyboard)', () => {
     it('contains all 12 sharp roots in ALL_SHARP_ROOTS', () => {
       expect(ALL_SHARP_ROOTS).toEqual(['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']);
     });
 
-    it('detects sharp minor and major keys correctly', () => {
-      expect(KeyDetector.detectKey('F# A B C# F#').key).toBe('F# Menor');
-      expect(KeyDetector.detectKey('C# E F# G# C#').key).toBe('C# Menor');
-      expect(KeyDetector.detectKey('D# F# G# A# D#').key).toBe('D# Menor');
-      expect(KeyDetector.detectKey('G# B C# D# G#').key).toBe('G# Menor');
+    it('returns trumpetKey and concertKey 2 semitones down', () => {
+      const result = KeyDetector.detectKey('D E F G A C# D');
+      expect(result.trumpetKey).toBe('D Menor');
+      expect(result.concertKey).toBe('C Menor');
+      expect(result.formatted).toBe('🎺 D Menor | 🎹 C Menor');
     });
 
-    it('detects keys from Solfege input and ignores comments', () => {
+    it('detects sharp minor and major keys correctly in both instruments', () => {
+      const resFSharp = KeyDetector.detectKey('F# A B C# F#');
+      expect(resFSharp.trumpetKey).toBe('F# Menor');
+      expect(resFSharp.concertKey).toBe('E Menor');
+
+      const resCSharp = KeyDetector.detectKey('C# E F# G# C#');
+      expect(resCSharp.trumpetKey).toBe('C# Menor');
+      expect(resCSharp.concertKey).toBe('B Menor');
+    });
+
+    it('detects keys from Solfege input and formats in Solfege when requested', () => {
       const solfege = '*intro* Do# Mi Fa# Sol# *fin* Do#';
-      expect(KeyDetector.detectKey(solfege).key).toBe('C# Menor');
+      const resLat = KeyDetector.detectKey(solfege, 'LATIN');
+      expect(resLat.trumpetKey).toBe('Do# Menor');
+      expect(resLat.concertKey).toBe('Si Menor');
     });
 
     it('does not show "Sin tono" on written songs', () => {
       const song = 'Intro: C G Am F\nVerso: C G F';
       const result = KeyDetector.detectKey(song);
-      expect(result.key).not.toBe('Sin tono');
-      expect(result.key).not.toBe('Desconocido');
+      expect(result.trumpetKey).not.toBe('Sin tono');
+      expect(result.concertKey).not.toBe('Sin tono');
+    });
+  });
+
+  describe('Auto-Recalculation in Storage', () => {
+    const store: Record<string, string> = {};
+    const mockStorage = {
+      getItem: (k: string) => store[k] || null,
+      setItem: (k: string, v: string) => { store[k] = v.toString(); },
+      removeItem: (k: string) => { delete store[k]; },
+      clear: () => { Object.keys(store).forEach(k => delete store[k]); }
+    };
+
+    beforeEach(() => {
+      mockStorage.clear();
+      // @ts-ignore
+      globalThis.localStorage = mockStorage;
+    });
+
+    it('automatically re-detects notes with "Sin tono" or "Tono desconocido"', () => {
+      const legacyNotes: SongNote[] = [
+        {
+          id: 'test-1',
+          title: 'Alabanza 1',
+          content: 'D E F G A C# D',
+          activeInstrument: 'trumpet',
+          detectedKey: 'Tono desconocido',
+          updatedAt: Date.now()
+        },
+        {
+          id: 'test-2',
+          title: 'Alabanza 2',
+          content: 'F# A B C# F#',
+          activeInstrument: 'trumpet',
+          detectedKey: 'Sin tono',
+          updatedAt: Date.now()
+        }
+      ];
+
+      mockStorage.setItem('trumpet_notes_data', JSON.stringify(legacyNotes));
+
+      const reevaluated = getAllNotes();
+      expect(reevaluated[0].detectedKey).toBe('D Menor');
+      expect(reevaluated[0].concertKey).toBe('C Menor');
+
+      expect(reevaluated[1].detectedKey).toBe('F# Menor');
+      expect(reevaluated[1].concertKey).toBe('E Menor');
     });
   });
 
