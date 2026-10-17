@@ -7,8 +7,10 @@ import { PitchSpaceView } from './components/views/PitchSpaceView';
 import { SetlistView } from './components/views/SetlistView';
 import { PwaInstallButton } from './components/common/PwaInstallButton';
 import { SongNote } from './types/note';
-import { NoteStorageService, sanitizeLegacyNotes, sanitizeEmptyNotes } from './services/storage/NoteStorageService';
+import { NoteStorageService, sanitizeLegacyNotes, sanitizeEmptyNotes, translateAllNotesInStorage } from './services/storage/NoteStorageService';
 import { NotationSystem } from './domain/music/NotationSystem';
+import { NotationTranslator, NotationStyle } from './domain/music/NotationTranslator';
+import { KeyDetector } from './domain/music/KeyDetector';
 
 function generateId() {
   return Math.random().toString(36).substring(2, 9);
@@ -84,8 +86,30 @@ export default function App() {
 
   const toggleNotation = useCallback(() => {
     setNotation(prev => {
-      const next = prev === 'en' ? 'natural' : 'en';
+      const next: NotationSystem = prev === 'en' ? 'natural' : 'en';
+      const targetStyle: NotationStyle = next === 'natural' ? 'LATIN' : 'ENGLISH';
       try { localStorage.setItem('notation', next); } catch {}
+
+      // 1. Traducir todo el repertorio en almacenamiento de inmediato
+      translateAllNotesInStorage(targetStyle);
+
+      // 2. Traducir la nota activa si está cargada
+      setActiveNote(curr => {
+        if (!curr || (!curr.content && !curr.title)) return curr;
+        const translatedContent = NotationTranslator.translateFullContent(curr.content || '', targetStyle);
+        const activeInst = curr.activeInstrument === 'keyboard' ? 'keyboard' : 'trumpet';
+        const keyResult = KeyDetector.detectKey(translatedContent, targetStyle, activeInst);
+        return {
+          ...curr,
+          content: translatedContent,
+          detectedKey: keyResult.trumpetKey,
+          concertKey: keyResult.concertKey
+        };
+      });
+
+      // 3. Forzar refresco reactivo de vistas (TonalGroupingView, SetlistView, etc.)
+      setRefreshTrigger(v => v + 1);
+
       return next;
     });
   }, []);

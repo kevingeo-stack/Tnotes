@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { NotationTranslator } from '../NotationTranslator';
 import { TranspositionEngine } from '../TranspositionEngine';
 import { KeyDetector, ALL_SHARP_ROOTS } from '../KeyDetector';
-import { getAllNotes } from '../../../services/storage/NoteStorageService';
+import { getAllNotes, translateAllNotesInStorage } from '../../../services/storage/NoteStorageService';
 import { SongNote } from '../../../types/note';
 
 describe('NotationTranslator & Dual Key Detection Suite', () => {
@@ -113,6 +113,58 @@ describe('NotationTranslator & Dual Key Detection Suite', () => {
 
       expect(reevaluated[1].detectedKey).toBe('F# Menor');
       expect(reevaluated[1].concertKey).toBe('E Menor');
+    });
+
+    it('translates all stored notes retroactively when notation style is toggled', () => {
+      const initialNotes: SongNote[] = [
+        {
+          id: 'song-1',
+          title: 'Grande y Fuerte',
+          content: 'D E F G A *coro* C# D',
+          activeInstrument: 'trumpet',
+          detectedKey: 'D Menor',
+          concertKey: 'C Menor',
+          updatedAt: Date.now()
+        },
+        {
+          id: 'song-2',
+          title: 'Fuego de Dios',
+          content: 'F# A B F#',
+          activeInstrument: 'trumpet',
+          detectedKey: 'F# Menor',
+          concertKey: 'E Menor',
+          updatedAt: Date.now()
+        }
+      ];
+
+      mockStorage.setItem('trumpet_notes_data', JSON.stringify(initialNotes));
+
+      // Traducir todo a Solfeo Latino
+      const latinNotes = translateAllNotesInStorage('LATIN');
+      expect(latinNotes[0].content).toBe('Re Mi Fa Sol La *coro* Do# Re');
+      expect(latinNotes[0].detectedKey).toBe('Re Menor');
+      expect(latinNotes[0].concertKey).toBe('Do Menor');
+
+      expect(latinNotes[1].content).toBe('Fa# La Si Fa#');
+      expect(latinNotes[1].detectedKey).toBe('Fa# Menor');
+      expect(latinNotes[1].concertKey).toBe('Mi Menor');
+
+      // Traducir todo de regreso a Cifrado Inglés
+      const engNotes = translateAllNotesInStorage('ENGLISH');
+      expect(engNotes[0].content).toBe('D E F G A *coro* C# D');
+      expect(engNotes[0].detectedKey).toBe('D Menor');
+      expect(engNotes[0].concertKey).toBe('C Menor');
+
+      expect(engNotes[1].content).toBe('F# A B F#');
+      expect(engNotes[1].detectedKey).toBe('F# Menor');
+      expect(engNotes[1].concertKey).toBe('E Menor');
+    });
+
+    it('processes notes with slashes (compases), line breaks and punctuation cleanly', () => {
+      const songWithSlashes = "D E F / G A / C# D \n *nota de reposo* \n D";
+      const result = KeyDetector.detectKey(songWithSlashes, 'ENGLISH');
+      expect(result.trumpetKey).toBe('D Menor');
+      expect(result.concertKey).toBe('C Menor');
     });
   });
 

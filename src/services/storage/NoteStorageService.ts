@@ -1,5 +1,6 @@
 import { SongNote, SetlistItem } from '../../types/note';
 import { KeyDetector } from '../../domain/music/KeyDetector';
+import { NotationTranslator, NotationStyle } from '../../domain/music/NotationTranslator';
 
 export type { SetlistItem };
 
@@ -102,6 +103,51 @@ try {
   // Ignore in environments where storage is restricted
 }
 
+/**
+ * Traduce retroactivamente todo el repertorio en almacenamiento al presionar
+ * el botón global de notación (Inglés <-> Solfeo).
+ */
+export const translateAllNotesInStorage = (targetStyle: NotationStyle): SongNote[] => {
+  try {
+    const storage = getStorage();
+    const raw = storage
+      ? (storage.getItem(PRIMARY_STORAGE_KEY) || storage.getItem(LEGACY_STORAGE_KEY))
+      : (typeof window !== 'undefined' ? localStorage.getItem(PRIMARY_STORAGE_KEY) : null);
+    if (!raw) return [];
+    const notes: SongNote[] = JSON.parse(raw);
+    if (!Array.isArray(notes)) return [];
+
+    const updatedNotes = notes.map(note => {
+      if (!note || typeof note !== 'object') return note;
+
+      // 1. Traducir el cuerpo completo de la canción
+      const translatedContent = NotationTranslator.translateFullContent(note.content || '', targetStyle);
+
+      // 2. Re-calcular las tonalidades de Trompeta y Teclado en el nuevo idioma de notación
+      const keyResult = KeyDetector.detectKey(translatedContent, targetStyle);
+
+      return {
+        ...note,
+        content: translatedContent,
+        detectedKey: keyResult.trumpetKey,
+        concertKey: keyResult.concertKey
+      };
+    });
+
+    if (storage) {
+      storage.setItem(PRIMARY_STORAGE_KEY, JSON.stringify(updatedNotes));
+      storage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(updatedNotes));
+    } else if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.setItem(PRIMARY_STORAGE_KEY, JSON.stringify(updatedNotes));
+    }
+
+    return updatedNotes;
+  } catch (err) {
+    console.error("Error translating all notes in storage:", err);
+    return [];
+  }
+};
+
 export const getAllNotes = (): SongNote[] => {
   try {
     sanitizeLegacyNotes();
@@ -114,14 +160,19 @@ export const getAllNotes = (): SongNote[] => {
     const notes: SongNote[] = JSON.parse(raw);
     if (!Array.isArray(notes)) return [];
 
+    const savedNotation = storage 
+      ? storage.getItem('notation') 
+      : (typeof window !== 'undefined' ? localStorage.getItem('notation') : null);
+    const notationStyle: NotationStyle = savedNotation === 'natural' ? 'LATIN' : 'ENGLISH';
+
     let hasChanges = false;
     const reevaluatedNotes = notes.map(note => {
       if (!note || typeof note !== 'object') return note;
 
-      const keyResult = KeyDetector.detectKey(note.content || '');
+      const keyResult = KeyDetector.detectKey(note.content || '', notationStyle);
       const freshKey = keyResult.trumpetKey; // Guardar clave de trompeta estandarizada
 
-      if (!note.detectedKey || note.detectedKey === 'Sin tono' || note.detectedKey === 'Tono desconocido' || note.detectedKey === 'Desconocido' || note.detectedKey !== freshKey || !note.concertKey) {
+      if (!note.detectedKey || note.detectedKey === 'Sin tono' || note.detectedKey === 'Tono desconocido' || note.detectedKey === 'Desconocido' || !note.concertKey) {
         hasChanges = true;
         return {
           ...note,
@@ -155,6 +206,10 @@ export const NoteStorageService = {
     return Array.isArray(notes) ? notes : [];
   },
 
+  translateAll(targetStyle: NotationStyle): SongNote[] {
+    return translateAllNotesInStorage(targetStyle);
+  },
+
   save(note: SongNote): void {
     try {
       const storage = getStorage();
@@ -163,7 +218,11 @@ export const NoteStorageService = {
       const notes = this.getAll();
       const existingIndex = notes.findIndex(n => n.id === note.id);
       
-      const keyResult = KeyDetector.detectKey(note.content || '');
+      const savedNotation = storage 
+        ? storage.getItem('notation') 
+        : (typeof window !== 'undefined' ? localStorage.getItem('notation') : null);
+      const notationStyle: NotationStyle = savedNotation === 'natural' ? 'LATIN' : 'ENGLISH';
+      const keyResult = KeyDetector.detectKey(note.content || '', notationStyle);
       const freshKey = keyResult.trumpetKey !== 'Sin tono' ? keyResult.trumpetKey : (note.detectedKey || 'Sin tono');
       const concertKey = keyResult.concertKey !== 'Sin tono' ? keyResult.concertKey : (note.concertKey || 'Sin tono');
 

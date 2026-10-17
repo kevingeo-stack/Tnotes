@@ -15,11 +15,13 @@ export type KeySignatureMatch = DualKeyResult;
 
 const PITCH_MAP: Record<string, number> = {
   // Inglés
-  'C': 0, 'C#': 1, 'DB': 1, 'D': 2, 'D#': 3, 'EB': 3, 'E': 4, 'F': 5,
+  'C': 0, 'C#': 1, 'DB': 1, 'D': 2, 'D#': 3, 'EB': 3, 'E': 4, 'E#': 5, 'F': 5,
   'F#': 6, 'GB': 6, 'G': 7, 'G#': 8, 'AB': 8, 'A': 9, 'A#': 10, 'BB': 10, 'B': 11,
+  'B#': 0, 'CB': 11, 'FB': 4,
   // Solfeo Latino
-  'DO': 0, 'DO#': 1, 'REB': 1, 'RE': 2, 'RE#': 3, 'MIB': 3, 'MI': 4, 'FA': 5,
-  'FA#': 6, 'SOLB': 6, 'SOL': 7, 'SOL#': 8, 'LAB': 8, 'LA': 9, 'LA#': 10, 'SIB': 10, 'SI': 11
+  'DO': 0, 'DO#': 1, 'REB': 1, 'RE': 2, 'RE#': 3, 'MIB': 3, 'MI': 4, 'MI#': 5,
+  'FA': 5, 'FA#': 6, 'SOLB': 6, 'SOL': 7, 'SOL#': 8, 'LAB': 8, 'LA': 9, 'LA#': 10,
+  'SIB': 10, 'SI': 11, 'SI#': 0, 'DOB': 11, 'FAB': 4
 };
 
 export const SHARP_NAMES_ENG = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -38,9 +40,11 @@ export class KeyDetector {
       raw = String(text);
     }
 
-    // Omitir anotaciones entre *asteriscos*
-    const clean = raw.replace(/(\*[^*]*\*?)/g, ' ');
-    const tokens = clean.toUpperCase().match(/(?<![A-Z])(DO[#B]?|RE[#B]?|MI|FA[#B]?|SOL[#B]?|LA[#B]?|SI[#B]?|[A-G][#B]?)(?![A-Z#B])/gi) || [];
+    // Omitir anotaciones entre *asteriscos*, saltos de línea y compases /
+    const clean = raw
+      .replace(/(\*[^*]*\*?)/g, ' ')
+      .replace(/[\/\n\r\t,;]/g, ' ');
+    const tokens = clean.toUpperCase().match(/(?<![A-Z])(DO[#B]?|RE[#B]?|MI[#B]?|FA[#B]?|SOL[#B]?|LA[#B]?|SI[#B]?|[A-G][#B]?)(?![A-Z#B])/gi) || [];
 
     const pitches: number[] = [];
     tokens.forEach(tok => {
@@ -158,5 +162,5 @@ export const detectKey = (
 
 export const cleanMusicContent = (rawText: string): string => {
   if (!rawText) return '';
-  return rawText.replace(/(\*[^*]*\*?)/g, ' ');
+  return rawText.replace(/(\*[^*]*\*?)/g, ' ').replace(/[\/\n\r\t,;]/g, ' ');
 };

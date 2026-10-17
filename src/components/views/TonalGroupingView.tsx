@@ -17,11 +17,11 @@ export function TonalGroupingView({ onSelectNote, onDeleteNote, notation }: Tona
   const [songToDelete, setSongToDelete] = useState<string | null>(null);
   const [instrumentFilter, setInstrumentFilter] = useState<'trumpet' | 'keyboard'>('trumpet');
 
-  // 1. Recarga Reactiva al Montar la Vista
+  // 1. Recarga Reactiva al Montar la Vista o al conmutar la notación global
   useEffect(() => {
     const freshNotes = NoteStorageService.getAll();
     setNotes(freshNotes);
-  }, []);
+  }, [notation]);
 
   // 2. Agrupación Dinámica según el filtro de instrumento seleccionado (Trompeta o Teclado)
   const groupedNotes = useMemo(() => {

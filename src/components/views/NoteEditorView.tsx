@@ -32,11 +32,14 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
 
   // Sync state when active note changes
   useEffect(() => {
+    const targetStyle: NotationStyle = notation === 'natural' ? 'LATIN' : 'ENGLISH';
+    setNotationStyle(targetStyle);
     setActiveInstrument(note.activeInstrument || 'keyboard');
-    setContent(note.content || '');
+    const syncContent = NotationTranslator.translateFullContent(note.content || '', targetStyle);
+    setContent(syncContent);
     setTitle(note.title || '');
     setIsKeyboardMode(false);
-  }, [note.id]);
+  }, [note.id, notation]);
 
   useEffect(() => {
     const targetStyle: NotationStyle = notation === 'natural' ? 'LATIN' : 'ENGLISH';
