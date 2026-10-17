@@ -21,26 +21,26 @@ const LAT_TO_ENG: Record<string, string> = {
 };
 
 export class NotationTranslator {
-  public static translateText(text: string, targetStyle: NotationStyle): string {
+  public static translateFullContent(text: string, targetStyle: NotationStyle): string {
     if (!text) return text;
 
-    // Dividir en bloques para no traducir comentarios entre asteriscos (*...*)
+    // Respetar comentarios entre asteriscos (*...*)
     return text.split(/(\*[^*]*\*?)/g).map(part => {
       if (part.startsWith('*')) return part; // Mantener comentarios intactos
 
       if (targetStyle === 'LATIN') {
-        // Convertir de Inglés a Solfeo
         return part.replace(/(?<![a-zA-Z])(C#|Db|C|D#|Eb|D|E|F#|Gb|F|G#|Ab|G|A#|Bb|A|B)(?![a-zA-Z#b])/gi, match => {
-          const key = match.toUpperCase();
-          return ENG_TO_LAT[key] || match;
+          return ENG_TO_LAT[match.toUpperCase()] || match;
         });
       } else {
-        // Convertir de Solfeo a Inglés
         return part.replace(/(?<![a-zA-Z])(Do#|Reb|Do|Re#|Mib|Re|Mi|Fa#|Solb|Fa|Sol#|Lab|Sol|La#|Sib|La|Si)(?![a-zA-Z#b])/gi, match => {
-          const key = match.toUpperCase();
-          return LAT_TO_ENG[key] || match;
+          return LAT_TO_ENG[match.toUpperCase()] || match;
         });
       }
     }).join('');
+  }
+
+  public static translateText(text: string, targetStyle: NotationStyle): string {
+    return this.translateFullContent(text, targetStyle);
   }
 }

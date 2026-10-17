@@ -8,6 +8,8 @@ export interface KeyDetectionResult {
   confidence: number;
 }
 
+export const ALL_SHARP_ROOTS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
+
 // Algoritmo determinista de detección de tonalidad melódica
 export function detectKey(notesText: string | string[] | any[]): KeyDetectionResult {
   let rawText = '';
@@ -36,17 +38,14 @@ export function detectKey(notesText: string | string[] | any[]): KeyDetectionRes
   };
 
   const converted = sanitized.replace(
-    /\b(DO#|REB|DO|RE#|MIB|RE|FA#|SOLB|FA|SOL#|LAB|SOL|LA#|SIB|LA|SI|MI)\b/gi,
+    /(?<![a-zA-Z])(DO#|REB|DO|RE#|MIB|RE|FA#|SOLB|FA|SOL#|LAB|SOL|LA#|SIB|LA|SI|MI)(?![a-zA-Z#b])/gi,
     m => solfegeMap[m.toUpperCase()] || m
   );
 
-  // 1. Limpiar separadores (/ * etc.) y extraer notas válidas
-  const tokens = converted
-    .replace(/[\/\*\-\n,]/g, ' ')
-    .split(/\s+/)
-    .filter(n => /^[A-G](#|b)?$/i.test(n));
+  // 1. Extraer todas las notas válidas (A-G con posibles alteraciones # o b)
+  const matches = converted.match(/(?<![a-zA-Z])([A-G][#b]?)(?![a-zA-Z#b])/gi) || [];
 
-  if (tokens.length === 0) {
+  if (matches.length === 0) {
     return {
       key: 'Desconocido',
       root: '',
@@ -58,13 +57,17 @@ export function detectKey(notesText: string | string[] | any[]): KeyDetectionRes
     };
   }
 
-  // Normalización a sostenidos
-  const normalize = (n: string) => {
-    const map: Record<string, string> = { 'Bb': 'A#', 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#' };
+  // Normalización estricta a sostenidos estándar
+  const normalize = (n: string): string => {
     const upper = n.toUpperCase();
+    const map: Record<string, string> = {
+      'BB': 'A#', 'DB': 'C#', 'EB': 'D#', 'GB': 'F#', 'AB': 'G#',
+      'C#': 'C#', 'D#': 'D#', 'F#': 'F#', 'G#': 'G#', 'A#': 'A#',
+      'C': 'C', 'D': 'D', 'E': 'E', 'F': 'F', 'G': 'G', 'A': 'A', 'B': 'B'
+    };
     return map[upper] || upper;
   };
-  const notes = tokens.map(normalize);
+  const notes = matches.map(normalize);
 
   // 2. Determinar la Tónica candidata (Root)
   // Se prioriza la nota de resolución final y la nota con mayor peso/frecuencia
@@ -87,10 +90,11 @@ export function detectKey(notesText: string | string[] | any[]): KeyDetectionRes
   }
 
   // 3. Evaluar Modo (Mayor vs Menor) con base en la 3ª a partir de la tónica
-  const chromatic = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-  const rootIdx = chromatic.indexOf(root);
-  const minorThird = chromatic[(rootIdx + 3) % 12];
-  const majorThird = chromatic[(rootIdx + 4) % 12];
+  const chromatic = ALL_SHARP_ROOTS;
+  const rootIdx = chromatic.indexOf(root as any);
+  const safeRootIdx = rootIdx !== -1 ? rootIdx : 0;
+  const minorThird = chromatic[(safeRootIdx + 3) % 12];
+  const majorThird = chromatic[(safeRootIdx + 4) % 12];
 
   let mode: 'Mayor' | 'Menor' = 'Menor'; // Default en este repertorio
   const hasMinor = notes.includes(minorThird);

@@ -8,7 +8,18 @@ interface KeyTransposeModalProps {
   onCancel: () => void;
 }
 
-const ALL_KEYS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+const ALL_KEYS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+const normalizeRoot = (root: string): string => {
+  const map: Record<string, string> = {
+    'DO': 'C', 'DO#': 'C#', 'REB': 'C#', 'RE': 'D', 'RE#': 'D#', 'MIB': 'D#',
+    'MI': 'E', 'FA': 'F', 'FA#': 'F#', 'SOLB': 'F#', 'SOL': 'G', 'SOL#': 'G#',
+    'LAB': 'G#', 'LA': 'A', 'LA#': 'A#', 'SIB': 'A#', 'SI': 'B',
+    'DB': 'C#', 'EB': 'D#', 'GB': 'F#', 'AB': 'G#', 'BB': 'A#'
+  };
+  const upper = root.toUpperCase();
+  return map[upper] || root;
+};
 
 export const KeyTransposeModal: React.FC<KeyTransposeModalProps> = ({
   isOpen,
@@ -18,13 +29,14 @@ export const KeyTransposeModal: React.FC<KeyTransposeModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const currentRoot = currentKey ? currentKey.split(' ')[0] : 'C';
+  const rawRoot = currentKey ? currentKey.split(' ')[0] : 'C';
+  const currentRoot = normalizeRoot(rawRoot);
   const currentMode = currentKey && currentKey.includes('Menor') ? 'Menor' : 'Mayor';
   const [selectedRoot, setSelectedRoot] = useState(currentRoot);
 
   useEffect(() => {
-    const root = currentKey ? currentKey.split(' ')[0] : 'C';
-    setSelectedRoot(root);
+    const raw = currentKey ? currentKey.split(' ')[0] : 'C';
+    setSelectedRoot(normalizeRoot(raw));
   }, [currentKey, isOpen]);
 
   const handleApply = () => {

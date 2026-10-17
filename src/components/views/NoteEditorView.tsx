@@ -5,6 +5,7 @@ import { KeyDetector, detectKey } from '../../domain/music/KeyDetector';
 import { formatKeyName, NotationSystem } from '../../domain/music/NotationSystem';
 import { NotationTranslator, NotationStyle } from '../../domain/music/NotationTranslator';
 import { KeyTransposeModal } from '../common/KeyTransposeModal';
+import { TranspositionSaveModal } from '../common/TranspositionSaveModal';
 import { SongNote } from '../../types/note';
 import { NoteStorageService } from '../../services/storage/NoteStorageService';
 
@@ -26,6 +27,8 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     notation === 'natural' ? 'LATIN' : 'ENGLISH'
   );
   const [isTransposeModalOpen, setIsTransposeModalOpen] = useState<boolean>(false);
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
+  const [pendingTargetKey, setPendingTargetKey] = useState<string>('');
 
   // Sync state when active note changes
   useEffect(() => {
@@ -36,7 +39,12 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
   }, [note.id]);
 
   useEffect(() => {
-    setNotationStyle(notation === 'natural' ? 'LATIN' : 'ENGLISH');
+    const targetStyle: NotationStyle = notation === 'natural' ? 'LATIN' : 'ENGLISH';
+    if (targetStyle !== notationStyle) {
+      setNotationStyle(targetStyle);
+      const translated = NotationTranslator.translateFullContent(content, targetStyle);
+      updateStateAndStorage(title, translated, activeInstrument);
+    }
   }, [notation]);
 
   useEffect(() => {
@@ -46,10 +54,17 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     }
   }, [content]);
 
+  // Detección tonal estable: reconoce la tonalidad y preserva la referencia guardada si no hay notas
   const currentKey = useMemo(() => {
     const res = KeyDetector.detectKey(content);
-    return res.key || res.formatted;
-  }, [content]);
+    if (res.key && res.key !== 'Desconocido' && res.key !== 'Sin tono') {
+      return res.key;
+    }
+    if (note.detectedKey && note.detectedKey !== 'Sin tono' && note.detectedKey !== 'Indeterminada' && note.detectedKey !== 'Desconocido') {
+      return note.detectedKey;
+    }
+    return res.key || res.formatted || 'Sin tono';
+  }, [content, note.detectedKey]);
 
   const formattedKey = useMemo(() => {
     const system: NotationSystem = notationStyle === 'LATIN' ? 'natural' : 'en';
@@ -59,15 +74,52 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
   const handleToggleNotation = () => {
     const nextStyle = notationStyle === 'ENGLISH' ? 'LATIN' : 'ENGLISH';
     setNotationStyle(nextStyle);
-    const translated = NotationTranslator.translateText(content, nextStyle);
+    const translated = NotationTranslator.translateFullContent(content, nextStyle);
     updateStateAndStorage(title, translated, activeInstrument);
   };
 
-  const handleApplyTargetKey = (targetKeyStr: string) => {
-    const semitones = TranspositionEngine.calculateShift(currentKey, targetKeyStr);
+  const handleSelectTargetKey = (targetKeyStr: string) => {
+    setPendingTargetKey(targetKeyStr);
+    setIsTransposeModalOpen(false);
+    setIsSaveModalOpen(true);
+  };
+
+  const handleUpdateExisting = () => {
+    if (!pendingTargetKey) return;
+    const semitones = TranspositionEngine.calculateShift(currentKey, pendingTargetKey);
     const transposedContent = TranspositionEngine.transposeBySemitones(content, semitones);
     updateStateAndStorage(title, transposedContent, activeInstrument);
-    setIsTransposeModalOpen(false);
+    setIsSaveModalOpen(false);
+    setPendingTargetKey('');
+  };
+
+  const handleSaveAsNew = (suggestedTitle: string) => {
+    if (!pendingTargetKey) return;
+    const semitones = TranspositionEngine.calculateShift(currentKey, pendingTargetKey);
+    const transposedContent = TranspositionEngine.transposeBySemitones(content, semitones);
+
+    const newNoteId = Date.now().toString();
+    const newNote: SongNote = {
+      id: newNoteId,
+      title: suggestedTitle,
+      content: transposedContent,
+      activeInstrument: activeInstrument,
+      detectedKey: pendingTargetKey,
+      updatedAt: Date.now()
+    };
+
+    NoteStorageService.save(newNote);
+    onNoteChange(newNote);
+
+    setTitle(suggestedTitle);
+    setContent(transposedContent);
+    setIsSaveModalOpen(false);
+    setPendingTargetKey('');
+  };
+
+  const handleCancelSave = () => {
+    setIsSaveModalOpen(false);
+    setPendingTargetKey('');
   };
 
   const updateStateAndStorage = (newTitle: string, newContent: string, newInstrument: 'keyboard' | 'trumpet') => {
@@ -468,12 +520,22 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
         </div>
       </div>
 
-      {/* Modal para Cambiar Tonalidad */}
+      {/* Modal para Seleccionar Tonalidad */}
       <KeyTransposeModal
         isOpen={isTransposeModalOpen}
         currentKey={currentKey}
-        onConfirm={handleApplyTargetKey}
+        onConfirm={handleSelectTargetKey}
         onCancel={() => setIsTransposeModalOpen(false)}
+      />
+
+      {/* Modal de Confirmación y Guardado de Transposición */}
+      <TranspositionSaveModal
+        isOpen={isSaveModalOpen}
+        targetKey={pendingTargetKey}
+        songTitle={title}
+        onUpdateExisting={handleUpdateExisting}
+        onSaveAsNew={handleSaveAsNew}
+        onCancel={handleCancelSave}
       />
     </div>
   );
