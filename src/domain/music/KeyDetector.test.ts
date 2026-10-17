@@ -65,4 +65,18 @@ describe('KeyDetector Deterministic Suite', () => {
     expect(result.mode).toBe('Mayor');
     expect(result.formatted).toBe('Sin tono');
   });
+
+  test('Caso 8: Detección responsiva según instrumento activo (Trompeta vs Teclado)', () => {
+    // Trompeta lee A Menor
+    const trumpetResult = KeyDetector.detectKey('A C E A', 'ENGLISH', 'trumpet');
+    expect(trumpetResult.trumpetKey).toBe('A Menor');
+    expect(trumpetResult.concertKey).toBe('G Menor');
+    expect(trumpetResult.formatted).toBe('🎺 A Menor | 🎹 G Menor');
+
+    // Teclado lee G Menor (notas desplazadas -2 semitonos: G, A#/Bb, D)
+    const keyboardResult = KeyDetector.detectKey('G A# D G', 'ENGLISH', 'keyboard');
+    expect(keyboardResult.trumpetKey).toBe('A Menor');
+    expect(keyboardResult.concertKey).toBe('G Menor');
+    expect(keyboardResult.formatted).toBe('🎹 G Menor | 🎺 A Menor');
+  });
 });

@@ -56,7 +56,7 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
 
   // Detección tonal dual (Trompeta / Teclado)
   const dualKeyResult = useMemo(() => {
-    const res = KeyDetector.detectKey(content, notationStyle);
+    const res = KeyDetector.detectKey(content, notationStyle, activeInstrument);
     if (res.trumpetKey && res.trumpetKey !== 'Sin tono') {
       return res;
     }
@@ -66,16 +66,21 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
       return {
         trumpetKey: trumpetK,
         concertKey: concertK,
-        formatted: `🎺 ${trumpetK} | 🎹 ${concertK}`,
+        formatted: activeInstrument === 'keyboard'
+          ? `🎹 ${concertK} | 🎺 ${trumpetK}`
+          : `🎺 ${trumpetK} | 🎹 ${concertK}`,
         key: trumpetK,
+        name: trumpetK,
+        concertEquivalent: concertK,
+        confidence: 1,
         root: trumpetK.split(' ')[0],
         mode: trumpetK.includes('Menor') ? 'Menor' as const : 'Mayor' as const
       };
     }
     return res;
-  }, [content, notationStyle, note.detectedKey, note.concertKey]);
+  }, [content, notationStyle, activeInstrument, note.detectedKey, note.concertKey]);
 
-  const currentKey = dualKeyResult.trumpetKey;
+  const currentKey = activeInstrument === 'trumpet' ? dualKeyResult.trumpetKey : dualKeyResult.concertKey;
 
   const handleToggleNotation = () => {
     const nextStyle = notationStyle === 'ENGLISH' ? 'LATIN' : 'ENGLISH';
@@ -105,13 +110,16 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     const semitones = TranspositionEngine.calculateShift(currentKey, pendingTargetKey);
     const transposedContent = TranspositionEngine.transposeBySemitones(content, semitones);
 
+    const keyResult = KeyDetector.detectKey(transposedContent, notationStyle, activeInstrument);
+
     const newNoteId = Date.now().toString();
     const newNote: SongNote = {
       id: newNoteId,
       title: suggestedTitle,
       content: transposedContent,
       activeInstrument: activeInstrument,
-      detectedKey: pendingTargetKey,
+      detectedKey: keyResult.trumpetKey,
+      concertKey: keyResult.concertKey,
       updatedAt: Date.now()
     };
 
@@ -134,7 +142,7 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     setContent(newContent);
     setActiveInstrument(newInstrument);
 
-    const keyResult = KeyDetector.detectKey(newContent, notationStyle);
+    const keyResult = KeyDetector.detectKey(newContent, notationStyle, newInstrument);
     const detectedKey = keyResult.trumpetKey;
     const concertKey = keyResult.concertKey;
 
@@ -198,7 +206,7 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
       finalTitle = firstLine ? firstLine.substring(0, 30) : 'Canción sin título';
     }
 
-    const keyResult = KeyDetector.detectKey(content, notationStyle);
+    const keyResult = KeyDetector.detectKey(content, notationStyle, activeInstrument);
 
     const noteToSave: SongNote = {
       id: note?.id || Date.now().toString(),
@@ -393,21 +401,43 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
         />
         
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          {/* Badge Tono Trompeta */}
-          <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 px-3.5 py-1.5 rounded-full text-sm font-semibold shadow-sm flex items-center gap-2 border border-amber-200 dark:border-amber-800">
-            <span>🎺 Trompeta:</span>
-            <span className="bg-white dark:bg-[#1F1F1F] px-2 py-0.5 rounded-full font-bold">
-              {dualKeyResult.trumpetKey}
-            </span>
-          </div>
+          {activeInstrument === 'trumpet' ? (
+            <>
+              {/* Badge Principal: Trompeta (resaltado en ámbar/dorado) */}
+              <div className="bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 px-3.5 py-1.5 rounded-full text-sm font-semibold shadow-sm flex items-center gap-2">
+                <span>🎺 Trompeta:</span>
+                <span className="bg-white dark:bg-[#1F1F1F] px-2 py-0.5 rounded-full font-bold text-amber-900 dark:text-amber-200">
+                  {dualKeyResult.trumpetKey}
+                </span>
+              </div>
 
-          {/* Badge Tono Teclado */}
-          <div className="bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-400 px-3.5 py-1.5 rounded-full text-sm font-semibold shadow-sm flex items-center gap-2 border border-blue-200 dark:border-blue-900/40">
-            <span>🎹 Teclado:</span>
-            <span className="bg-white dark:bg-[#1F1F1F] px-2 py-0.5 rounded-full font-bold">
-              {dualKeyResult.concertKey}
-            </span>
-          </div>
+              {/* Badge Secundario: Teclado (atenuado) */}
+              <div className="bg-gray-100 dark:bg-gray-800/80 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700/60 px-3 py-1.5 rounded-full text-sm font-medium shadow-xs flex items-center gap-2 opacity-85">
+                <span>🎹 Teclado:</span>
+                <span className="bg-white dark:bg-[#1F1F1F] px-2 py-0.5 rounded-full font-semibold">
+                  {dualKeyResult.concertKey}
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Badge Principal: Teclado (resaltado en ámbar/dorado) */}
+              <div className="bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 px-3.5 py-1.5 rounded-full text-sm font-semibold shadow-sm flex items-center gap-2">
+                <span>🎹 Teclado:</span>
+                <span className="bg-white dark:bg-[#1F1F1F] px-2 py-0.5 rounded-full font-bold text-amber-900 dark:text-amber-200">
+                  {dualKeyResult.concertKey}
+                </span>
+              </div>
+
+              {/* Badge Secundario: Trompeta (atenuado) */}
+              <div className="bg-gray-100 dark:bg-gray-800/80 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700/60 px-3 py-1.5 rounded-full text-sm font-medium shadow-xs flex items-center gap-2 opacity-85">
+                <span>🎺 Trompeta:</span>
+                <span className="bg-white dark:bg-[#1F1F1F] px-2 py-0.5 rounded-full font-semibold">
+                  {dualKeyResult.trumpetKey}
+                </span>
+              </div>
+            </>
+          )}
 
           <button 
             type="button"
@@ -434,8 +464,8 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
             onClick={handleToggleInstrument}
             className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold transition shadow-sm border cursor-pointer active:scale-95 ${
               activeInstrument === 'keyboard' 
-                ? 'bg-gray-800 dark:bg-gray-700 text-white border-gray-700 dark:border-gray-600 hover:bg-gray-700 dark:hover:bg-gray-600' 
-                : 'bg-amber-500 text-white border-amber-600 hover:bg-amber-600'
+                ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-700' 
+                : 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600'
             }`}
             title="Conmutar instrumento (transpone ±2 semitonos el texto actual)"
           >

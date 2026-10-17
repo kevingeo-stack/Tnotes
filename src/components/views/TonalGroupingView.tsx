@@ -15,6 +15,7 @@ interface TonalGroupingViewProps {
 export function TonalGroupingView({ onSelectNote, onDeleteNote, notation }: TonalGroupingViewProps) {
   const [notes, setNotes] = useState<SongNote[]>([]);
   const [songToDelete, setSongToDelete] = useState<string | null>(null);
+  const [instrumentFilter, setInstrumentFilter] = useState<'trumpet' | 'keyboard'>('trumpet');
 
   // 1. Recarga Reactiva al Montar la Vista
   useEffect(() => {
@@ -22,19 +23,51 @@ export function TonalGroupingView({ onSelectNote, onDeleteNote, notation }: Tona
     setNotes(freshNotes);
   }, []);
 
-  // 2. Agrupación Estricta usando la propiedad note.detectedKey guardada
+  // 2. Agrupación Dinámica según el filtro de instrumento seleccionado (Trompeta o Teclado)
   const groupedNotes = useMemo(() => {
     return notes.reduce((acc, note) => {
-      const key = note.detectedKey || 'Sin tono';
+      const key = instrumentFilter === 'keyboard' 
+        ? (note.concertKey || 'Sin tono') 
+        : (note.detectedKey || 'Sin tono');
       if (!acc[key]) acc[key] = [];
       acc[key].push(note);
       return acc;
     }, {} as Record<string, SongNote[]>);
-  }, [notes]);
+  }, [notes, instrumentFilter]);
 
   return (
     <div className="w-full mx-auto p-4 md:p-6 pb-32">
-      <h1 className="text-3xl font-bold text-[#202124] dark:text-[#E8EAED] mb-8">Tonalidades</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <h1 className="text-3xl font-bold text-[#202124] dark:text-[#E8EAED]">Tonalidades</h1>
+
+        {/* Filtro de Instrumento (Trompeta / Teclado) */}
+        <div className="flex items-center bg-gray-100 dark:bg-[#28292A] p-1 rounded-xl border border-gray-200 dark:border-gray-700 w-fit">
+          <button
+            type="button"
+            onClick={() => setInstrumentFilter('trumpet')}
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-bold transition cursor-pointer ${
+              instrumentFilter === 'trumpet'
+                ? 'bg-white dark:bg-[#1F1F1F] text-amber-700 dark:text-amber-400 shadow-sm border border-gray-200 dark:border-gray-700'
+                : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+            }`}
+          >
+            <span>🎺</span>
+            <span>Trompeta</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setInstrumentFilter('keyboard')}
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-bold transition cursor-pointer ${
+              instrumentFilter === 'keyboard'
+                ? 'bg-white dark:bg-[#1F1F1F] text-blue-600 dark:text-blue-400 shadow-sm border border-gray-200 dark:border-gray-700'
+                : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+            }`}
+          >
+            <span>🎹</span>
+            <span>Teclado</span>
+          </button>
+        </div>
+      </div>
       
       {Object.keys(groupedNotes).length === 0 && (
         <div className="text-gray-500 dark:text-gray-400 text-center py-12">
@@ -44,14 +77,25 @@ export function TonalGroupingView({ onSelectNote, onDeleteNote, notation }: Tona
 
       {Object.entries(groupedNotes).sort((a, b) => a[0].localeCompare(b[0])).map(([rawKey, groupNotes]) => {
         const displayKey = formatKeyName(rawKey, notation);
-        const concertKeySample = groupNotes[0]?.concertKey ? formatKeyName(groupNotes[0].concertKey, notation) : null;
+        const altKeySample = instrumentFilter === 'trumpet'
+          ? (groupNotes[0]?.concertKey ? formatKeyName(groupNotes[0].concertKey, notation) : null)
+          : (groupNotes[0]?.detectedKey ? formatKeyName(groupNotes[0].detectedKey, notation) : null);
+
         return (
           <div key={rawKey} className="mb-10">
             <h2 className="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 pb-2 flex flex-wrap items-baseline gap-2.5">
-              <span>{displayKey === 'Sin tono' ? 'Sin tono' : `🎺 Trompeta: ${displayKey}`}</span>
-              {concertKeySample && concertKeySample !== 'Sin tono' && (
-                <span className="text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2.5 py-0.5 rounded-full border border-blue-200 dark:border-blue-900/40">
-                  🎹 Teclado: {concertKeySample}
+              <span>
+                {displayKey === 'Sin tono' 
+                  ? 'Sin tono' 
+                  : (instrumentFilter === 'trumpet' ? `🎺 Trompeta: ${displayKey}` : `🎹 Teclado: ${displayKey}`)}
+              </span>
+              {altKeySample && altKeySample !== 'Sin tono' && (
+                <span className={`text-sm font-medium px-2.5 py-0.5 rounded-full border ${
+                  instrumentFilter === 'trumpet'
+                    ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-900/40'
+                    : 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-900/40'
+                }`}>
+                  {instrumentFilter === 'trumpet' ? `🎹 Teclado: ${altKeySample}` : `🎺 Trompeta: ${altKeySample}`}
                 </span>
               )}
               <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
@@ -97,7 +141,11 @@ export function TonalGroupingView({ onSelectNote, onDeleteNote, notation }: Tona
                   </div>
                   <div className="mt-3 text-xs text-gray-400 dark:text-gray-500 flex justify-between items-center">
                     <span className="truncate">
-                      {note.concertKey && note.concertKey !== 'Sin tono' ? `🎹 ${formatKeyName(note.concertKey, notation)}` : ''}
+                      {instrumentFilter === 'trumpet' ? (
+                        note.concertKey && note.concertKey !== 'Sin tono' ? `🎹 ${formatKeyName(note.concertKey, notation)}` : ''
+                      ) : (
+                        note.detectedKey && note.detectedKey !== 'Sin tono' ? `🎺 ${formatKeyName(note.detectedKey, notation)}` : ''
+                      )}
                     </span>
                     <span className="shrink-0">{new Date(note.updatedAt).toLocaleDateString()}</span>
                   </div>

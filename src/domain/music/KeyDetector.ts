@@ -50,7 +50,11 @@ export class KeyDetector {
     return pitches;
   }
 
-  public static detectKey(text: string | string[] | any, notationStyle: 'ENGLISH' | 'LATIN' = 'ENGLISH'): DualKeyResult {
+  public static detectKey(
+    text: string | string[] | any,
+    notationStyle: 'ENGLISH' | 'LATIN' = 'ENGLISH',
+    instrument: 'trumpet' | 'keyboard' = 'trumpet'
+  ): DualKeyResult {
     const pitches = this.parsePitches(text);
 
     if (pitches.length === 0) {
@@ -104,18 +108,28 @@ export class KeyDetector {
       }
     }
 
-    // Tono en Teclado / Concierto (2 semitonos abajo que Trompeta)
-    const concertTonic = (bestTonic - 2 + 12) % 12;
+    let trumpetTonic: number;
+    let concertTonic: number;
+
+    if (instrument === 'keyboard') {
+      concertTonic = bestTonic;
+      trumpetTonic = (bestTonic + 2) % 12;
+    } else {
+      trumpetTonic = bestTonic;
+      concertTonic = (bestTonic - 2 + 12) % 12;
+    }
 
     const names = notationStyle === 'LATIN' ? SHARP_NAMES_LAT : SHARP_NAMES_ENG;
 
-    const trumpetKeyStr = `${names[bestTonic]} ${bestMode}`;
+    const trumpetKeyStr = `${names[trumpetTonic]} ${bestMode}`;
     const concertKeyStr = `${names[concertTonic]} ${bestMode}`;
 
     return {
       trumpetKey: trumpetKeyStr,
       concertKey: concertKeyStr,
-      formatted: `🎺 ${trumpetKeyStr} | 🎹 ${concertKeyStr}`,
+      formatted: instrument === 'keyboard' 
+        ? `🎹 ${concertKeyStr} | 🎺 ${trumpetKeyStr}`
+        : `🎺 ${trumpetKeyStr} | 🎹 ${concertKeyStr}`,
       key: trumpetKeyStr,
       name: trumpetKeyStr,
       concertEquivalent: concertKeyStr,
@@ -125,17 +139,21 @@ export class KeyDetector {
     };
   }
 
-  public static detect(text: string | string[] | any, notationStyle: 'ENGLISH' | 'LATIN' = 'ENGLISH'): string {
-    return this.detectKey(text, notationStyle).trumpetKey;
+  public static detect(text: string | string[] | any, notationStyle: 'ENGLISH' | 'LATIN' = 'ENGLISH', instrument: 'trumpet' | 'keyboard' = 'trumpet'): string {
+    return this.detectKey(text, notationStyle, instrument).trumpetKey;
   }
 
-  public static detectDetailed(text: string | string[] | any, notationStyle: 'ENGLISH' | 'LATIN' = 'ENGLISH'): DualKeyResult {
-    return this.detectKey(text, notationStyle);
+  public static detectDetailed(text: string | string[] | any, notationStyle: 'ENGLISH' | 'LATIN' = 'ENGLISH', instrument: 'trumpet' | 'keyboard' = 'trumpet'): DualKeyResult {
+    return this.detectKey(text, notationStyle, instrument);
   }
 }
 
-export const detectKey = (text: string | string[] | any, notationStyle: 'ENGLISH' | 'LATIN' = 'ENGLISH'): DualKeyResult => {
-  return KeyDetector.detectKey(text, notationStyle);
+export const detectKey = (
+  text: string | string[] | any, 
+  notationStyle: 'ENGLISH' | 'LATIN' = 'ENGLISH',
+  instrument: 'trumpet' | 'keyboard' = 'trumpet'
+): DualKeyResult => {
+  return KeyDetector.detectKey(text, notationStyle, instrument);
 };
 
 export const cleanMusicContent = (rawText: string): string => {
