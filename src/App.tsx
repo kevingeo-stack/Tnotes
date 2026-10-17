@@ -265,6 +265,8 @@ export default function App() {
               onSelectNote={handleSelectNote} 
               onDeleteNote={handleDeleteNote} 
               notation={notation} 
+              onCreateNewSong={handleNewNote}
+              onRefreshNotes={() => setRefreshTrigger(v => v + 1)}
             />
           )}
           {currentView === 'pitch-space' && (
