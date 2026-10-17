@@ -262,6 +262,10 @@ export default function App() {
           {currentView === 'grouping' && (
             <TonalGroupingView 
               key={refreshTrigger} 
+              notes={NoteStorageService.getAll()}
+              activeInstrument="trumpet"
+              notationStyle={notation === 'natural' ? 'LATIN' : 'ENGLISH'}
+              onSelectSong={handleSelectNote}
               onSelectNote={handleSelectNote} 
               onDeleteNote={handleDeleteNote} 
               notation={notation} 
