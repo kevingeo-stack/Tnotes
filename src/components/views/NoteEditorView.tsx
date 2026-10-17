@@ -1,8 +1,10 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Check } from 'lucide-react';
-import { transposeText } from '../../domain/music/TranspositionEngine';
+import { Check, RefreshCw, Globe2 } from 'lucide-react';
+import { transposeText, TranspositionEngine } from '../../domain/music/TranspositionEngine';
 import { KeyDetector, detectKey } from '../../domain/music/KeyDetector';
 import { formatKeyName, NotationSystem } from '../../domain/music/NotationSystem';
+import { NotationTranslator, NotationStyle } from '../../domain/music/NotationTranslator';
+import { KeyTransposeModal } from '../common/KeyTransposeModal';
 import { SongNote } from '../../types/note';
 import { NoteStorageService } from '../../services/storage/NoteStorageService';
 
@@ -20,6 +22,11 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
   const [isKeyboardMode, setIsKeyboardMode] = useState<boolean>(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const [notationStyle, setNotationStyle] = useState<NotationStyle>(
+    notation === 'natural' ? 'LATIN' : 'ENGLISH'
+  );
+  const [isTransposeModalOpen, setIsTransposeModalOpen] = useState<boolean>(false);
+
   // Sync state when active note changes
   useEffect(() => {
     setActiveInstrument(note.activeInstrument || 'keyboard');
@@ -27,6 +34,10 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     setTitle(note.title || '');
     setIsKeyboardMode(false);
   }, [note.id]);
+
+  useEffect(() => {
+    setNotationStyle(notation === 'natural' ? 'LATIN' : 'ENGLISH');
+  }, [notation]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -39,7 +50,25 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     const res = KeyDetector.detectKey(content);
     return res.key || res.formatted;
   }, [content]);
-  const formattedKey = useMemo(() => formatKeyName(currentKey, notation), [currentKey, notation]);
+
+  const formattedKey = useMemo(() => {
+    const system: NotationSystem = notationStyle === 'LATIN' ? 'natural' : 'en';
+    return formatKeyName(currentKey, system);
+  }, [currentKey, notationStyle]);
+
+  const handleToggleNotation = () => {
+    const nextStyle = notationStyle === 'ENGLISH' ? 'LATIN' : 'ENGLISH';
+    setNotationStyle(nextStyle);
+    const translated = NotationTranslator.translateText(content, nextStyle);
+    updateStateAndStorage(title, translated, activeInstrument);
+  };
+
+  const handleApplyTargetKey = (targetKeyStr: string) => {
+    const semitones = TranspositionEngine.calculateShift(currentKey, targetKeyStr);
+    const transposedContent = TranspositionEngine.transposeBySemitones(content, semitones);
+    updateStateAndStorage(title, transposedContent, activeInstrument);
+    setIsTransposeModalOpen(false);
+  };
 
   const updateStateAndStorage = (newTitle: string, newContent: string, newInstrument: 'keyboard' | 'trumpet') => {
     setTitle(newTitle);
@@ -277,7 +306,7 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
 
   const baseNotesEn = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
   const baseNotesNat = ['Do', 'Re', 'Mi', 'Fa', 'Sol', 'La', 'Si'];
-  const quickAssistNotes = notation === 'en' ? baseNotesEn : baseNotesNat;
+  const quickAssistNotes = notationStyle === 'ENGLISH' ? baseNotesEn : baseNotesNat;
 
   return (
     <div className="flex flex-col w-full h-full pt-4 px-4 pb-36 sm:pb-40">
@@ -302,11 +331,31 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
           onChange={handleTitleChange}
         />
         
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 px-3.5 py-1.5 rounded-full text-sm font-semibold shadow-sm flex items-center gap-2 border border-amber-200 dark:border-amber-800">
             <span>{activeInstrument === 'keyboard' ? '🎹 Tono Teclado:' : '🎺 Tono Trompeta:'}</span>
             <span className="bg-white dark:bg-[#1F1F1F] px-2 py-0.5 rounded-full">{formattedKey}</span>
           </div>
+
+          <button 
+            type="button"
+            onClick={() => setIsTransposeModalOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-semibold transition shadow-sm border border-amber-600 bg-amber-500 hover:bg-amber-600 text-white cursor-pointer active:scale-95"
+            title="Cambiar Tonalidad de la canción"
+          >
+            <RefreshCw size={15} />
+            <span>Cambiar Tono</span>
+          </button>
+
+          <button 
+            type="button"
+            onClick={handleToggleNotation}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-semibold transition shadow-sm border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-[#28292A] hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 cursor-pointer active:scale-95"
+            title="Conmutar notación (Inglés ↔ Solfeo)"
+          >
+            <Globe2 size={16} className="text-amber-500" />
+            <span>{notationStyle === 'ENGLISH' ? 'EN' : 'Solfeo'}</span>
+          </button>
 
           <button 
             type="button"
@@ -418,6 +467,14 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
           </button>
         </div>
       </div>
+
+      {/* Modal para Cambiar Tonalidad */}
+      <KeyTransposeModal
+        isOpen={isTransposeModalOpen}
+        currentKey={currentKey}
+        onConfirm={handleApplyTargetKey}
+        onCancel={() => setIsTransposeModalOpen(false)}
+      />
     </div>
   );
 }
