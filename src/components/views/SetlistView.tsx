@@ -164,16 +164,12 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
 
   // Calculate concert key for any song note
   const getConcertKeyForNote = (note: SongNote): string => {
-    if (note.detectedKey && note.detectedKey !== 'Indeterminada' && note.detectedKey !== 'Desconocido') {
-      return note.detectedKey;
+    if (note.concertKey && note.concertKey !== 'Sin tono' && note.concertKey !== 'Indeterminada' && note.concertKey !== 'Desconocido') {
+      return note.concertKey;
     }
-    const detectedResult = KeyDetector.detectKey(note.content || '');
-    let detected = detectedResult.key || detectedResult.formatted;
-    if (detected === 'Indeterminada' || detected === 'Desconocido' || !detectedResult.root) return 'Sin tono';
-    if (note.activeInstrument === 'trumpet') {
-      detected = transposeKeyName(detected, -2);
-    }
-    return detected || 'Sin tono';
+    const notationStyle: 'ENGLISH' | 'LATIN' = notation === 'natural' ? 'LATIN' : 'ENGLISH';
+    const detectedResult = KeyDetector.detectKey(note.content || '', notationStyle, note.activeInstrument || 'keyboard');
+    return detectedResult.concertKey !== 'Sin tono' ? detectedResult.concertKey : (note.detectedKey || 'Sin tono');
   };
 
   // Defensive validation of songs in active setlist

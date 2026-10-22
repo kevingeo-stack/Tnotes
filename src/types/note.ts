@@ -5,6 +5,8 @@ export interface SongNote {
   activeInstrument: 'keyboard' | 'trumpet'; // Persiste si la nota está en tono de teclado o trompeta
   detectedKey: string;
   concertKey?: string;
+  baseContent?: string;
+  baseInstrument?: 'keyboard' | 'trumpet';
   updatedAt: number;
 }
 

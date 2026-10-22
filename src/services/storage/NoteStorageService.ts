@@ -51,11 +51,20 @@ export const sanitizeLegacyNotes = (): void => {
 
     let modified = false;
     const cleanNotes = parsed.map((note: SongNote) => {
+      let updatedNote = note;
       if (!note.activeInstrument) {
         modified = true;
-        return { ...note, activeInstrument: 'keyboard' as const };
+        updatedNote = { ...updatedNote, activeInstrument: 'keyboard' as const };
       }
-      return note;
+      if (!updatedNote.baseContent && updatedNote.content) {
+        modified = true;
+        updatedNote = {
+          ...updatedNote,
+          baseContent: updatedNote.content,
+          baseInstrument: updatedNote.activeInstrument || 'keyboard'
+        };
+      }
+      return updatedNote;
     });
 
     if (modified || !storage.getItem(PRIMARY_STORAGE_KEY)) {
@@ -120,15 +129,22 @@ export const translateAllNotesInStorage = (targetStyle: NotationStyle): SongNote
     const updatedNotes = notes.map(note => {
       if (!note || typeof note !== 'object') return note;
 
+      const inst = note.activeInstrument || 'keyboard';
       // 1. Traducir el cuerpo completo de la canción
       const translatedContent = NotationTranslator.translateFullContent(note.content || '', targetStyle);
+      const translatedBase = note.baseContent
+        ? NotationTranslator.translateFullContent(note.baseContent, targetStyle)
+        : translatedContent;
 
       // 2. Re-calcular las tonalidades de Trompeta y Teclado en el nuevo idioma de notación
-      const keyResult = KeyDetector.detectKey(translatedContent, targetStyle);
+      const keyResult = KeyDetector.detectKey(translatedContent, targetStyle, inst);
 
       return {
         ...note,
         content: translatedContent,
+        baseContent: translatedBase,
+        baseInstrument: note.baseInstrument || inst,
+        activeInstrument: inst,
         detectedKey: keyResult.trumpetKey,
         concertKey: keyResult.concertKey
       };
@@ -169,19 +185,26 @@ export const getAllNotes = (): SongNote[] => {
     const reevaluatedNotes = notes.map(note => {
       if (!note || typeof note !== 'object') return note;
 
-      const keyResult = KeyDetector.detectKey(note.content || '', notationStyle);
-      const freshKey = keyResult.trumpetKey; // Guardar clave de trompeta estandarizada
+      const inst = note.activeInstrument || 'keyboard';
 
       if (!note.detectedKey || note.detectedKey === 'Sin tono' || note.detectedKey === 'Tono desconocido' || note.detectedKey === 'Desconocido' || !note.concertKey) {
         hasChanges = true;
+        const keyResult = KeyDetector.detectKey(note.content || '', notationStyle, 'trumpet');
+        const freshKey = keyResult.trumpetKey; // Guardar clave de trompeta estandarizada
         return {
           ...note,
-          activeInstrument: note.activeInstrument || 'keyboard',
+          activeInstrument: inst,
           detectedKey: freshKey,
-          concertKey: keyResult.concertKey
+          concertKey: keyResult.concertKey,
+          baseContent: note.baseContent ?? note.content,
+          baseInstrument: note.baseInstrument ?? inst
         };
       }
-      return note;
+      return {
+        ...note,
+        baseContent: note.baseContent ?? note.content,
+        baseInstrument: note.baseInstrument ?? inst
+      };
     });
 
     if (hasChanges) {
@@ -222,7 +245,8 @@ export const NoteStorageService = {
         ? storage.getItem('notation') 
         : (typeof window !== 'undefined' ? localStorage.getItem('notation') : null);
       const notationStyle: NotationStyle = savedNotation === 'natural' ? 'LATIN' : 'ENGLISH';
-      const keyResult = KeyDetector.detectKey(note.content || '', notationStyle);
+      const inst = note.activeInstrument || 'keyboard';
+      const keyResult = KeyDetector.detectKey(note.content || '', notationStyle, inst);
       const freshKey = keyResult.trumpetKey !== 'Sin tono' ? keyResult.trumpetKey : (note.detectedKey || 'Sin tono');
       const concertKey = keyResult.concertKey !== 'Sin tono' ? keyResult.concertKey : (note.concertKey || 'Sin tono');
 
@@ -230,7 +254,9 @@ export const NoteStorageService = {
         ...note,
         detectedKey: freshKey,
         concertKey: concertKey,
-        activeInstrument: note.activeInstrument || 'keyboard'
+        activeInstrument: inst,
+        baseContent: note.baseContent !== undefined ? note.baseContent : (note.content || ''),
+        baseInstrument: note.baseInstrument || inst
       };
 
       if (existingIndex >= 0) {

@@ -26,6 +26,10 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
   const [notationStyle, setNotationStyle] = useState<NotationStyle>(
     notation === 'natural' ? 'LATIN' : 'ENGLISH'
   );
+  const [baseReference, setBaseReference] = useState<{ content: string; instrument: 'keyboard' | 'trumpet' }>(() => ({
+    content: note.baseContent !== undefined ? note.baseContent : (note.content || ''),
+    instrument: note.baseInstrument || note.activeInstrument || 'keyboard'
+  }));
   const [isTransposeModalOpen, setIsTransposeModalOpen] = useState<boolean>(false);
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [pendingTargetKey, setPendingTargetKey] = useState<string>('');
@@ -34,9 +38,17 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
   useEffect(() => {
     const targetStyle: NotationStyle = notation === 'natural' ? 'LATIN' : 'ENGLISH';
     setNotationStyle(targetStyle);
-    setActiveInstrument(note.activeInstrument || 'keyboard');
+    const inst = note.activeInstrument || 'keyboard';
+    setActiveInstrument(inst);
     const syncContent = NotationTranslator.translateFullContent(note.content || '', targetStyle);
     setContent(syncContent);
+    const baseInst = note.baseInstrument || inst;
+    const baseRaw = note.baseContent !== undefined ? note.baseContent : (note.content || '');
+    const syncBaseContent = NotationTranslator.translateFullContent(baseRaw, targetStyle);
+    setBaseReference({
+      content: syncBaseContent,
+      instrument: baseInst
+    });
     setTitle(note.title || '');
     setIsKeyboardMode(false);
   }, [note.id, notation]);
@@ -46,7 +58,8 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     if (targetStyle !== notationStyle) {
       setNotationStyle(targetStyle);
       const translated = NotationTranslator.translateFullContent(content, targetStyle);
-      updateStateAndStorage(title, translated, activeInstrument);
+      const translatedBase = NotationTranslator.translateFullContent(baseReference.content, targetStyle);
+      updateStateAndStorage(title, translated, activeInstrument, translatedBase, baseReference.instrument);
     }
   }, [notation]);
 
@@ -89,8 +102,9 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     const nextStyle = notationStyle === 'ENGLISH' ? 'LATIN' : 'ENGLISH';
     setNotationStyle(nextStyle);
     const translated = NotationTranslator.translateFullContent(content, nextStyle);
+    const translatedBase = NotationTranslator.translateFullContent(baseReference.content, nextStyle);
     setContent(translated);
-    updateStateAndStorage(title, translated, activeInstrument);
+    updateStateAndStorage(title, translated, activeInstrument, translatedBase, baseReference.instrument);
   };
 
   const handleSelectTargetKey = (targetKeyStr: string) => {
@@ -103,7 +117,8 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     if (!pendingTargetKey) return;
     const semitones = TranspositionEngine.calculateShift(currentKey, pendingTargetKey);
     const transposedContent = TranspositionEngine.transposeBySemitones(content, semitones);
-    updateStateAndStorage(title, transposedContent, activeInstrument);
+    setBaseReference({ content: transposedContent, instrument: activeInstrument });
+    updateStateAndStorage(title, transposedContent, activeInstrument, transposedContent, activeInstrument);
     setIsSaveModalOpen(false);
     setPendingTargetKey('');
   };
@@ -121,6 +136,8 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
       title: suggestedTitle,
       content: transposedContent,
       activeInstrument: activeInstrument,
+      baseContent: transposedContent,
+      baseInstrument: activeInstrument,
       detectedKey: keyResult.trumpetKey,
       concertKey: keyResult.concertKey,
       updatedAt: Date.now()
@@ -131,6 +148,7 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
 
     setTitle(suggestedTitle);
     setContent(transposedContent);
+    setBaseReference({ content: transposedContent, instrument: activeInstrument });
     setIsSaveModalOpen(false);
     setPendingTargetKey('');
   };
@@ -140,10 +158,21 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     setPendingTargetKey('');
   };
 
-  const updateStateAndStorage = (newTitle: string, newContent: string, newInstrument: 'keyboard' | 'trumpet') => {
+  const updateStateAndStorage = (
+    newTitle: string,
+    newContent: string,
+    newInstrument: 'keyboard' | 'trumpet',
+    newBaseContent?: string,
+    newBaseInstrument?: 'keyboard' | 'trumpet'
+  ) => {
     setTitle(newTitle);
     setContent(newContent);
     setActiveInstrument(newInstrument);
+
+    const effectiveBaseContent = newBaseContent !== undefined ? newBaseContent : newContent;
+    const effectiveBaseInstrument = newBaseInstrument !== undefined ? newBaseInstrument : newInstrument;
+
+    setBaseReference({ content: effectiveBaseContent, instrument: effectiveBaseInstrument });
 
     const keyResult = KeyDetector.detectKey(newContent, notationStyle, newInstrument);
     const detectedKey = keyResult.trumpetKey;
@@ -154,6 +183,8 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
       title: newTitle,
       content: newContent,
       activeInstrument: newInstrument,
+      baseContent: effectiveBaseContent,
+      baseInstrument: effectiveBaseInstrument,
       detectedKey,
       concertKey,
       updatedAt: Date.now()
@@ -169,24 +200,31 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
   };
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateStateAndStorage(e.target.value, content, activeInstrument);
+    updateStateAndStorage(e.target.value, content, activeInstrument, baseReference.content, baseReference.instrument);
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    // When editing directly, text is taken as-is in the active instrument
-    updateStateAndStorage(title, e.target.value, activeInstrument);
+    // When editing directly, text is taken as-is in the active instrument and becomes the base
+    const newText = e.target.value;
+    updateStateAndStorage(title, newText, activeInstrument, newText, activeInstrument);
   };
 
   const handleToggleInstrument = () => {
-    if (activeInstrument === 'keyboard') {
-      // Transpose +2 semitones to trumpet
-      const transposed = transposeText(content, 'KEYBOARD_TO_TRUMPET');
-      updateStateAndStorage(title, transposed, 'trumpet');
+    const nextInstrument: 'keyboard' | 'trumpet' = activeInstrument === 'keyboard' ? 'trumpet' : 'keyboard';
+    let nextContent: string;
+    if (nextInstrument === baseReference.instrument) {
+      // Regreso a la referencia original estable: 0 deriva acumulada
+      nextContent = baseReference.content;
+    } else if (nextInstrument === 'trumpet') {
+      // Base en teclado transpuesta a trompeta (+2 semitonos)
+      nextContent = transposeText(baseReference.content, 'KEYBOARD_TO_TRUMPET');
     } else {
-      // Transpose -2 semitones to keyboard
-      const transposed = transposeText(content, 'TRUMPET_TO_KEYBOARD');
-      updateStateAndStorage(title, transposed, 'keyboard');
+      // Base en trompeta transpuesta a teclado (-2 semitonos)
+      nextContent = transposeText(baseReference.content, 'TRUMPET_TO_KEYBOARD');
     }
+
+    // Conservar baseReference original al alternar modo
+    updateStateAndStorage(title, nextContent, nextInstrument, baseReference.content, baseReference.instrument);
   };
 
   const handleSaveAndExit = () => {
@@ -216,6 +254,8 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
       title: finalTitle,
       content: content,
       activeInstrument: activeInstrument || 'keyboard',
+      baseContent: baseReference.content,
+      baseInstrument: baseReference.instrument,
       detectedKey: keyResult.trumpetKey,
       concertKey: keyResult.concertKey,
       updatedAt: Date.now()

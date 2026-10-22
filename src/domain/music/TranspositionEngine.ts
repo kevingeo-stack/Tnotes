@@ -15,44 +15,42 @@ export function trumpetToKeyboard(pitch: SharpPitch): SharpPitch {
 }
 
 export function transposeKeyName(keyName: string, semitones: number): string {
-    if (!keyName || keyName === 'Indeterminada' || keyName === 'Sin tono') return keyName || 'Sin tono';
+    if (!keyName || keyName === 'Indeterminada' || keyName === 'Sin tono' || keyName === 'Desconocido') return keyName || 'Sin tono';
     const parts = keyName.split(' ');
     if (parts.length !== 2) return keyName;
-    const normalizedRoot = normalizeToSharp(parts[0]) || (parts[0] as SharpPitch);
+    const root = parts[0];
     const mode = parts[1];
     
-    const currentIndex = PITCH_CLASSES.indexOf(normalizedRoot);
-    if (currentIndex === -1) return keyName;
+    const upper = root.toUpperCase().replace('♯', '#').replace('♭', 'B');
+    const currentIndex = PITCH_INDEX[upper];
+    if (currentIndex === undefined) {
+      const normalizedRoot = normalizeToSharp(root);
+      if (!normalizedRoot) return keyName;
+      const idx = PITCH_CLASSES.indexOf(normalizedRoot);
+      if (idx === -1) return keyName;
+      const newIndex = (((idx + semitones) % 12) + 12) % 12;
+      return `${PITCH_CLASSES[newIndex]} ${mode}`;
+    }
 
     const newIndex = (((currentIndex + semitones) % 12) + 12) % 12;
-    return `${PITCH_CLASSES[newIndex]} ${mode}`;
+    const isLatin = /^(Do|Re|Mi|Fa|Sol|La|Si)/i.test(root);
+    return `${isLatin ? LATIN_SHARP_PITCHES[newIndex] : SHARP_PITCHES[newIndex]} ${mode}`;
 }
 
 export function transposeText(text: string, direction: 'KEYBOARD_TO_TRUMPET' | 'TRUMPET_TO_KEYBOARD'): string {
-    if (!text) return '';
-    return text.split(/(\*[^*]*\*?)/g).map(part => {
-        if (part.startsWith('*')) {
-            return part; // Mantener comentario intacto
-        }
-        return part.replace(NOTE_REGEX, (match) => {
-            const normalized = normalizeToSharp(match);
-            if (normalized) {
-                return direction === 'KEYBOARD_TO_TRUMPET' 
-                    ? keyboardToTrumpet(normalized) 
-                    : trumpetToKeyboard(normalized);
-            }
-            return match;
-        });
-    }).join('');
+    const semitones = direction === 'KEYBOARD_TO_TRUMPET' ? 2 : -2;
+    return TranspositionEngine.transposeBySemitones(text, semitones);
 }
 
 export const transposeSongText = transposeText;
 
 export const PITCH_INDEX: Record<string, number> = {
-  'C': 0, 'C#': 1, 'DB': 1, 'D': 2, 'D#': 3, 'EB': 3, 'E': 4, 'F': 5,
-  'F#': 6, 'GB': 6, 'G': 7, 'G#': 8, 'AB': 8, 'A': 9, 'A#': 10, 'BB': 10, 'B': 11,
-  'DO': 0, 'DO#': 1, 'REB': 1, 'RE': 2, 'RE#': 3, 'MIB': 3, 'MI': 4, 'FA': 5,
-  'FA#': 6, 'SOLB': 6, 'SOL': 7, 'SOL#': 8, 'LAB': 8, 'LA': 9, 'LA#': 10, 'SIB': 10, 'SI': 11
+  // English
+  'C': 0, 'C#': 1, 'C♯': 1, 'DB': 1, 'D♭': 1, 'D': 2, 'D#': 3, 'D♯': 3, 'EB': 3, 'E♭': 3, 'E': 4, 'E#': 5, 'E♯': 5, 'FB': 4, 'F♭': 4,
+  'F': 5, 'F#': 6, 'F♯': 6, 'GB': 6, 'G♭': 6, 'G': 7, 'G#': 8, 'G♯': 8, 'AB': 8, 'A♭': 8, 'A': 9, 'A#': 10, 'A♯': 10, 'BB': 10, 'B♭': 10, 'B': 11, 'B#': 0, 'B♯': 0, 'CB': 11, 'C♭': 11,
+  // Latin Solfege
+  'DO': 0, 'DO#': 1, 'DO♯': 1, 'REB': 1, 'RE♭': 1, 'RE': 2, 'RE#': 3, 'RE♯': 3, 'MIB': 3, 'MI♭': 3, 'MI': 4, 'MI#': 5, 'MI♯': 5, 'FAB': 4, 'FA♭': 4,
+  'FA': 5, 'FA#': 6, 'FA♯': 6, 'SOLB': 6, 'SOL♭': 6, 'SOL': 7, 'SOL#': 8, 'SOL♯': 8, 'LAB': 8, 'LA♭': 8, 'LA': 9, 'LA#': 10, 'LA♯': 10, 'SIB': 10, 'SI♭': 10, 'SI': 11, 'SI#': 0, 'SI♯': 0, 'DOB': 11, 'DO♭': 11
 };
 
 export const SHARP_PITCHES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -60,7 +58,8 @@ export const LATIN_SHARP_PITCHES = ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#',
 
 export class TranspositionEngine {
   /**
-   * Transpone un texto completo N semitonos arriba o abajo respetando comentarios.
+   * Transpone un texto completo N semitonos arriba o abajo respetando comentarios,
+   * solfeo latino, notación inglesa, alteraciones y octavas numéricas.
    */
   public static transposeBySemitones(text: string, semitones: number): string {
     if (!text || semitones === 0) return text;
@@ -68,15 +67,33 @@ export class TranspositionEngine {
     return text.split(/(\*[^*]*\*?)/g).map(part => {
       if (part.startsWith('*')) return part;
 
-      return part.replace(/(?<![a-zA-Z])([A-G][#b]?|Do[#b]?|Re[#b]?|Mi|Fa[#b]?|Sol[#b]?|La[#b]?|Si[#b]?)(?![a-zA-Z#b])/gi, match => {
-        const upper = match.toUpperCase();
-        const pitchClass = PITCH_INDEX[upper];
-        if (pitchClass === undefined) return match;
+      return part.replace(
+        /(?<![a-zA-Z])(Do[#b♯♭]?|Re[#b♯♭]?|Mi[#b♯♭]?|Fa[#b♯♭]?|Sol[#b♯♭]?|La[#b♯♭]?|Si[#b♯♭]?|[A-G][#b♯♭]?)([0-9])?(?![a-zA-Z#b♯♭])/gi,
+        (match, notePart, octavePart, offset, fullString) => {
+          // Si es "La" seguido de palabra en minúscula que NO es nota ni modo (ej. "La canción", "La trompeta"), es artículo
+          if (/^la$/i.test(notePart)) {
+            const rest = fullString.slice(offset + match.length);
+            const nextWordMatch = rest.match(/^\s+([a-zA-Zñáéíóú#b♯♭]+)/);
+            if (nextWordMatch) {
+              const nextWord = nextWordMatch[1];
+              const isNextWordNoteOrMode = /^(do[#b♯♭]?|re[#b♯♭]?|mi[#b♯♭]?|fa[#b♯♭]?|sol[#b♯♭]?|la[#b♯♭]?|si[#b♯♭]?|[a-g][#b♯♭]?|menor|mayor|min|maj|m)$/i.test(nextWord);
+              if (!isNextWordNoteOrMode && /^[a-zñáéíóú]/.test(nextWord)) {
+                return match;
+              }
+            }
+          }
 
-        const newPitchClass = (pitchClass + semitones + 120) % 12;
-        const isLatin = /^(Do|Re|Mi|Fa|Sol|La|Si)/i.test(match);
-        return isLatin ? LATIN_SHARP_PITCHES[newPitchClass] : SHARP_PITCHES[newPitchClass];
-      });
+          const upper = notePart.toUpperCase().replace('♯', '#').replace('♭', 'B');
+          const pitchClass = PITCH_INDEX[upper];
+          if (pitchClass === undefined) return match;
+
+          const newPitchClass = (((pitchClass + semitones) % 12) + 12) % 12;
+          const isLatin = /^(Do|Re|Mi|Fa|Sol|La|Si)/i.test(notePart);
+          const baseName = isLatin ? LATIN_SHARP_PITCHES[newPitchClass] : SHARP_PITCHES[newPitchClass];
+
+          return baseName;
+        }
+      );
     }).join('');
   }
 
@@ -85,8 +102,8 @@ export class TranspositionEngine {
    */
   public static calculateShift(currentKeyStr: string, targetKeyStr: string): number {
     if (!currentKeyStr || !targetKeyStr) return 0;
-    const currentRoot = currentKeyStr.trim().split(' ')[0].toUpperCase();
-    const targetRoot = targetKeyStr.trim().split(' ')[0].toUpperCase();
+    const currentRoot = currentKeyStr.trim().split(' ')[0].toUpperCase().replace('♯', '#').replace('♭', 'B');
+    const targetRoot = targetKeyStr.trim().split(' ')[0].toUpperCase().replace('♯', '#').replace('♭', 'B');
 
     const currentIdx = PITCH_INDEX[currentRoot] ?? 0;
     const targetIdx = PITCH_INDEX[targetRoot] ?? 0;

@@ -64,7 +64,11 @@ if (rootElement) {
 // PWA Service Worker Registration
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(err => {
+    const swUrl = `${import.meta.env.BASE_URL}sw.js`;
+    navigator.serviceWorker.register(swUrl).then((reg) => {
+      // Force checking for updates from server immediately
+      reg.update().catch(() => {});
+    }).catch(err => {
       console.log('SW registration error:', err);
     });
   });

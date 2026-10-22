@@ -38,7 +38,7 @@ export const TonalGroupingView: React.FC<TonalGroupingViewProps> = ({
 
   // 1. Agrupar canciones por la tonalidad activa
   const groupedNotes = notes.reduce<Record<string, { primaryKey: string; secondaryKey: string; songs: SongNote[] }>>((acc, note) => {
-    const keyInfo = KeyDetector.detectKey(note.content || '', notationStyle);
+    const keyInfo = KeyDetector.detectKey(note.content || '', notationStyle, note.activeInstrument || 'keyboard');
 
     // Determinar tono primario y secundario según el instrumento activo
     const primaryKey = activeInstrument === 'trumpet' ? keyInfo.trumpetKey : keyInfo.concertKey;

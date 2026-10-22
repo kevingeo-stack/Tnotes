@@ -45,10 +45,14 @@ export class PWAInstallService {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
     window.addEventListener('load', () => {
+      const swUrl = typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL
+        ? `${import.meta.env.BASE_URL}sw.js`
+        : './sw.js';
       navigator.serviceWorker
-        .register('/sw.js')
+        .register(swUrl)
         .then((reg) => {
           this.registration = reg;
+          reg.update().catch(() => {});
           // Check for worker updates
           reg.addEventListener('updatefound', () => {
             const newWorker = reg.installing;
