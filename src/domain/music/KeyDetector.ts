@@ -94,7 +94,7 @@ export class KeyDetector {
     const noComments = normalizedFlats.replace(/(\*[^*]*\*?)/g, ' ');
 
     // Separar por delimitadores no musicales respetando caracteres de alteración
-    const clean = noComments.replace(/[\/\n\r\t,;|:\-_()]/g, ' ');
+    const clean = noComments.replace(/[\/\n\r\t,;|:\-_().!?¡¿"']/g, ' ');
     const rawTokens = clean.trim().split(/\s+/).filter(Boolean);
 
     // Detectar si el texto contiene preponderantemente notas en solfeo latino
@@ -136,7 +136,10 @@ export class KeyDetector {
       }
 
       // 3. Extracción de notas: SOLFEO LATINO TIENE PRIORIDAD sobre [A-G] para evitar que 'Do' o 'Fa' colisionen con 'D' o 'F'
-      const match = tok.match(/^(DO[#B♯♭]?|RE[#B♯♭]?|MI[#B♯♭]?|FA[#B♯♭]?|SOL[#B♯♭]?|LA[#B♯♭]?|SI[#B♯♭]?|[A-G][#B♯♭]?)/i);
+      // Exige que el token completo sea una nota musical válida (con alteración/octava opcional o sufijo de acorde reconocido)
+      const match = tok.match(
+        /^(DO[#B♯♭]?|RE[#B♯♭]?|MI[#B♯♭]?|FA[#B♯♭]?|SOL[#B♯♭]?|LA[#B♯♭]?|SI[#B♯♭]?|[A-G][#B♯♭]?)(?:[0-9]|(?:m|min|menor|maj|mayor|dim|aug|sus[24]?|add[0-9]+|[0-9]+)(?:[#b♯♭]?[0-9]*)?)?$/i
+      );
       if (match) {
         const noteCandidate = match[1].toUpperCase().replace(/♯/g, '#').replace(/♭/g, 'B');
         const pitchIdx = PITCH_MAP[noteCandidate];
@@ -286,6 +289,12 @@ export class KeyDetector {
     const winnerHasMin3 = rawCounts[(winner.root + 3) % 12] > 0;
     const isNoThird = uniquePitches.size === 2 && !winnerHasMaj3 && !winnerHasMin3;
 
+    // Evaluación de ambigüedad por saturación cromática uniforme sin jerarquía tonal
+    const winnerTriadCount = rawCounts[winner.root]
+      + (winnerHasMaj3 ? rawCounts[(winner.root + 4) % 12] : rawCounts[(winner.root + 3) % 12])
+      + rawCounts[(winner.root + 7) % 12];
+    const isChromaticUniform = uniquePitches.size >= 11 && (winnerTriadCount / pitches.length) < 0.40;
+
     // Detección de ambigüedad
     let isAmbiguous = false;
     let ambiguityReason: DualKeyResult['ambiguityReason'];
@@ -293,6 +302,9 @@ export class KeyDetector {
     if (uniquePitches.size < 3) {
       isAmbiguous = true;
       ambiguityReason = isNoThird ? 'NO_THIRD' : 'INSUFFICIENT_NOTES';
+    } else if (isChromaticUniform) {
+      isAmbiguous = true;
+      ambiguityReason = 'CHROMATIC_UNCERTAINTY';
     } else if (relativeMargin < 0.08) {
       isAmbiguous = true;
       ambiguityReason = 'MULTIPLE_CANDIDATES';
@@ -309,6 +321,8 @@ export class KeyDetector {
       confidence = isOpenFifth ? 0.35 : 0.25;
     } else if (uniquePitches.size === 2) {
       confidence = 0.25;
+    } else if (ambiguityReason === 'CHROMATIC_UNCERTAINTY') {
+      confidence = Math.min(0.35, Math.max(0.15, Math.round(relativeMargin * 50) / 100));
     } else {
       const u = uniquePitches.size;
       const fU = u === 3 ? 0.65 : u === 4 ? 0.75 : u === 5 ? 0.85 : u === 6 ? 0.92 : 1.0;

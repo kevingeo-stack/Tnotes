@@ -191,7 +191,18 @@ export const getAllNotes = (): SongNote[] => {
 
       if (!note.detectedKey || note.detectedKey === 'Sin tono' || note.detectedKey === 'Tono desconocido' || note.detectedKey === 'Desconocido' || !note.concertKey) {
         hasChanges = true;
-        const keyResult = KeyDetector.detectKey(note.content || '', notationStyle, 'trumpet');
+        // Evaluar con el instrumento que corresponde a la canción.
+        // Las canciones históricas legadas del repertorio de trompeta que carecen de concertKey
+        // fueron escritas originalmente en tono de trompeta en Sib.
+        const isLegacyTrumpetSong = !note.concertKey && (
+          note.activeInstrument === 'trumpet' ||
+          note.title === 'Al poderoso' ||
+          note.title === 'Cómo hizo David' ||
+          note.title === 'Fuego' ||
+          note.title === 'Fiesta'
+        );
+        const evalInstrument = isLegacyTrumpetSong ? 'trumpet' : inst;
+        const keyResult = KeyDetector.detectKey(note.content || '', notationStyle, evalInstrument);
         const freshKey = keyResult.trumpetKey; // Guardar clave de trompeta estandarizada
         return {
           ...note,

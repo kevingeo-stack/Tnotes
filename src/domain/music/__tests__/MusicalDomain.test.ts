@@ -43,13 +43,11 @@ describe('TranspositionEngine', () => {
     it('transposes text correctly, keeping punctuation', () => {
         const text = "La canción está en F, luego cambia a Bb4. C# m";
         const transposedToTrumpet = transposeText(text, 'KEYBOARD_TO_TRUMPET');
-        // 'a' could be parsed as a note? No, 'a' should be skipped because it's a valid word but wait, let's see. 
-        // If 'a' is matched, it would become B. My NOTE_REGEX will match 'a', 'F', 'Bb4', 'C#'.
-        // So 'a' becomes 'B'. If that fails, we can reconsider regex.
-        expect(transposedToTrumpet).toBe("La canción está en G, luego cambia B C. D# m");
+        // 'a' es la preposición española y debe preservarse; Bb4 preserva la octava 4
+        expect(transposedToTrumpet).toBe("La canción está en G, luego cambia a C4. D# m");
 
         const transposedToKeyboard = transposeText(text, 'TRUMPET_TO_KEYBOARD');
-        expect(transposedToKeyboard).toBe("La canción está en D#, luego cambia G G#. B m");
+        expect(transposedToKeyboard).toBe("La canción está en D#, luego cambia a G#4. B m");
     });
 
     it('preserves *...* comments intact during transposition', () => {

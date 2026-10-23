@@ -72,17 +72,48 @@ export class TranspositionEngine {
       if (part.startsWith('*')) return part;
 
       return part.replace(
-        /(?<![a-zA-ZñáéíóúÁÉÍÓÚÑ])(Do[#b♯♭]?|Re[#b♯♭]?|Mi[#b♯♭]?|Fa[#b♯♭]?|Sol[#b♯♭]?|La[#b♯♭]?|Si[#b♯♭]?|[A-G][#b♯♭]?)([0-9])?(?![a-zA-ZñáéíóúÁÉÍÓÚÑ#b♯♭])/gi,
+        /(?<![a-zA-ZñáéíóúÁÉÍÓÚÑ])(Do[#b♯♭]?|Re[#b♯♭]?|Mi[#b♯♭]?|Fa[#b♯♭]?|Sol[#b♯♭]?|La[#b♯♭]?|Si[#b♯♭]?|[A-G][#b♯♭]?)([0-9])?(?![a-zA-ZñáéíóúÁÉÍÓÚÑ#b♯♭0-9])/gi,
         (match, notePart, octavePart, offset, fullString) => {
           // Si es "La" seguido de palabra en minúscula que NO es nota ni modo (ej. "La canción", "La trompeta"), es artículo
           if (/^la$/i.test(notePart)) {
             const rest = fullString.slice(offset + match.length);
-            const nextWordMatch = rest.match(/^\s+([a-zA-Zñáéíóú#b♯♭]+)/);
+            const nextWordMatch = rest.match(/^\s+([a-zA-ZñáéíóúÁÉÍÓÚÑ#b♯♭0-9]+)/);
             if (nextWordMatch) {
               const nextWord = nextWordMatch[1];
-              const isNextWordNoteOrMode = /^(do[#b♯♭]?|re[#b♯♭]?|mi[#b♯♭]?|fa[#b♯♭]?|sol[#b♯♭]?|la[#b♯♭]?|si[#b♯♭]?|[a-g][#b♯♭]?|menor|mayor|min|maj|m)$/i.test(nextWord);
+              const isNextWordNoteOrMode = /^(do[#b♯♭]?|re[#b♯♭]?|mi[#b♯♭]?|fa[#b♯♭]?|sol[#b♯♭]?|la[#b♯♭]?|si[#b♯♭]?|[a-g][#b♯♭]?|[0-9]+|menor|mayor|min|maj|m)$/i.test(nextWord);
               if (!isNextWordNoteOrMode && /^[a-zñáéíóú]/.test(nextWord)) {
                 return match;
+              }
+            }
+          }
+
+          // Desambiguar la preposición "a" frente a la nota "A"
+          if (/^a$/i.test(notePart) && octavePart === undefined) {
+            const rest = fullString.slice(offset + match.length);
+            const nextWordMatch = rest.match(/^\s+([a-zA-ZñáéíóúÁÉÍÓÚÑ#b♯♭0-9]+)/);
+            if (nextWordMatch) {
+              const nextWord = nextWordMatch[1];
+              const isNextWordNoteOrMode = /^(do[#b♯♭]?|re[#b♯♭]?|mi[#b♯♭]?|fa[#b♯♭]?|sol[#b♯♭]?|la[#b♯♭]?|si[#b♯♭]?|[a-g][#b♯♭]?|[0-9]+|menor|mayor|min|maj|m)$/i.test(nextWord);
+              // Si va seguida de palabra en minúscula no musical (ej. "vamos a cantar", "a tiempo"): es preposición
+              if (!isNextWordNoteOrMode && /^[a-zñáéíóú]/.test(nextWord)) {
+                return match;
+              }
+            }
+
+            // Si es "a" minúscula precedida por verbo o palabra española no musical (ej. "cambia a C4", "luego cambia a Bb4", "de C a D")
+            if (notePart === 'a') {
+              const prev = fullString.slice(0, offset);
+              // Caso de construcción correlativa "de [Nota] a [Nota]"
+              if (/\bde\s+(do[#b♯♭]?|re[#b♯♭]?|mi[#b♯♭]?|fa[#b♯♭]?|sol[#b♯♭]?|la[#b♯♭]?|si[#b♯♭]?|[a-g][#b♯♭]?)\s+$/i.test(prev)) {
+                return match;
+              }
+              const prevWordMatch = prev.match(/([a-zA-ZñáéíóúÁÉÍÓÚÑ]+)\s+$/);
+              if (prevWordMatch) {
+                const prevWord = prevWordMatch[1];
+                const isPrevWordNote = /^(do[#b♯♭]?|re[#b♯♭]?|mi[#b♯♭]?|fa[#b♯♭]?|sol[#b♯♭]?|la[#b♯♭]?|si[#b♯♭]?|[a-g][#b♯♭]?)$/i.test(prevWord);
+                if (!isPrevWordNote) {
+                  return match;
+                }
               }
             }
           }
@@ -95,7 +126,7 @@ export class TranspositionEngine {
           const isLatin = /^(Do|Re|Mi|Fa|Sol|La|Si)/i.test(notePart);
           const baseName = isLatin ? LATIN_SHARP_PITCHES[newPitchClass] : SHARP_PITCHES[newPitchClass];
 
-          return baseName;
+          return octavePart !== undefined ? `${baseName}${octavePart}` : baseName;
         }
       );
     }).join('');

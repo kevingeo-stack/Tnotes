@@ -17,29 +17,29 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
       onClick={onCancel}
     >
       <div 
-        className="w-full max-w-xs bg-white dark:bg-[#1E1E1E] rounded-2xl p-6 shadow-2xl border border-neutral-200 dark:border-neutral-800 text-center flex flex-col items-center gap-5"
+        className="w-full max-w-xs bg-white dark:bg-[#202124] rounded-3xl p-6 shadow-2xl border border-gray-200 dark:border-gray-700/80 text-center flex flex-col items-center gap-5"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="text-base md:text-lg font-bold text-neutral-800 dark:text-neutral-100">
+        <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100">
           {title}
         </h3>
 
-        <div className="flex w-full gap-3 justify-center">
+        <div className="flex w-full gap-2.5 justify-center">
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold text-neutral-600 dark:text-neutral-300 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 active:scale-95 transition-all cursor-pointer"
+            className="flex-1 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-[#2A2B2D] hover:bg-gray-200 dark:hover:bg-[#343538] active:scale-95 transition-all cursor-pointer"
           >
             Cancelar
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="flex-1 py-2.5 px-4 rounded-xl text-sm font-semibold text-white bg-red-600 hover:bg-red-700 active:scale-95 transition-all shadow-sm cursor-pointer"
+            className="flex-1 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold text-white bg-red-600 hover:bg-red-700 active:scale-95 transition-all shadow-sm cursor-pointer"
           >
             Aceptar
           </button>

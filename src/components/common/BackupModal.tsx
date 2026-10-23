@@ -138,45 +138,45 @@ export const BackupModal: React.FC<BackupModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
       onClick={handleClose}
     >
       <div
-        className="bg-white dark:bg-[#1E1E1E] rounded-3xl border border-neutral-200 dark:border-neutral-800 w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
+        className="bg-white dark:bg-[#202124] rounded-3xl border border-gray-200 dark:border-gray-700/80 w-full max-w-xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Cabecera del Modal */}
-        <div className="p-4 sm:p-5 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
+        <div className="p-4 sm:p-5 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <span className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400">
               <Download size={20} />
             </span>
             <div>
-              <h2 className="text-lg sm:text-xl font-bold text-neutral-800 dark:text-neutral-100">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
                 Respaldo y Recuperación
               </h2>
-              <p className="text-xs text-neutral-500 dark:text-neutral-400">
+              <p className="text-xs text-gray-500 dark:text-gray-400">
                 Copia de seguridad local sin conexión (.tnotes)
               </p>
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-500 transition cursor-pointer"
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-[#2A2B2D] text-gray-500 transition cursor-pointer"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Pestañas de Navegación */}
-        <div className="flex border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50 p-1.5 gap-1.5">
+        <div className="flex border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-[#1A1A1C] p-1.5 gap-1.5">
           <button
             type="button"
             onClick={() => setActiveTab('export')}
             className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition cursor-pointer ${
               activeTab === 'export'
-                ? 'bg-white dark:bg-[#1E1E1E] text-amber-600 dark:text-amber-400 shadow-xs'
-                : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900'
+                ? 'bg-white dark:bg-[#202124] text-amber-600 dark:text-amber-400 shadow-xs'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
             }`}
           >
             <Download size={16} />
@@ -187,8 +187,8 @@ export const BackupModal: React.FC<BackupModalProps> = ({
             onClick={() => setActiveTab('import')}
             className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition cursor-pointer ${
               activeTab === 'import'
-                ? 'bg-white dark:bg-[#1E1E1E] text-amber-600 dark:text-amber-400 shadow-xs'
-                : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900'
+                ? 'bg-white dark:bg-[#202124] text-amber-600 dark:text-amber-400 shadow-xs'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
             }`}
           >
             <Upload size={16} />
@@ -214,29 +214,29 @@ export const BackupModal: React.FC<BackupModalProps> = ({
 
               {/* Estadísticas de la biblioteca */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-3.5 rounded-2xl bg-neutral-50 dark:bg-neutral-900/50 border border-neutral-200 dark:border-neutral-800 flex items-center gap-3">
+                <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-[#1A1A1C] border border-gray-200 dark:border-gray-800 flex items-center gap-3">
                   <span className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
                     <Music size={20} />
                   </span>
                   <div>
-                    <span className="text-xs text-neutral-500 dark:text-neutral-400 block font-medium">Canciones</span>
-                    <span className="text-lg font-black text-neutral-800 dark:text-neutral-100">{currentSongs.length}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block font-medium">Canciones</span>
+                    <span className="text-lg font-black text-gray-900 dark:text-gray-100">{currentSongs.length}</span>
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-neutral-50 dark:bg-neutral-900/50 border border-neutral-200 dark:border-neutral-800 flex items-center gap-3">
+                <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-[#1A1A1C] border border-gray-200 dark:border-gray-800 flex items-center gap-3">
                   <span className="p-2.5 rounded-xl bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
                     <ListMusic size={20} />
                   </span>
                   <div>
-                    <span className="text-xs text-neutral-500 dark:text-neutral-400 block font-medium">Listas</span>
-                    <span className="text-lg font-black text-neutral-800 dark:text-neutral-100">{currentSetlists.length}</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 block font-medium">Listas</span>
+                    <span className="text-lg font-black text-gray-900 dark:text-gray-100">{currentSetlists.length}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="text-xs text-neutral-500 dark:text-neutral-400 space-y-1 bg-neutral-50 dark:bg-neutral-900/30 p-3.5 rounded-xl border border-neutral-100 dark:border-neutral-800">
-                <p className="font-semibold text-neutral-700 dark:text-neutral-300 flex items-center gap-1.5">
+              <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1 bg-gray-50 dark:bg-[#1A1A1C] p-3.5 rounded-xl border border-gray-100 dark:border-gray-800">
+                <p className="font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
                   <HelpCircle size={14} />
                   ¿Cómo funciona el respaldo?
                 </p>
@@ -248,7 +248,7 @@ export const BackupModal: React.FC<BackupModalProps> = ({
               <button
                 type="button"
                 onClick={handleDownload}
-                className="w-full py-3.5 px-4 rounded-2xl bg-amber-600 hover:bg-amber-700 active:scale-98 text-white font-bold text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3.5 px-4 rounded-full bg-amber-600 hover:bg-amber-700 active:scale-98 text-white font-bold text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Download size={18} />
                 <span>Descargar Copia de Seguridad (.tnotes)</span>
@@ -263,13 +263,13 @@ export const BackupModal: React.FC<BackupModalProps> = ({
               {!selectedFileName && (
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-neutral-300 dark:border-neutral-700 hover:border-amber-500 dark:hover:border-amber-500 rounded-3xl p-8 text-center cursor-pointer transition bg-neutral-50/50 dark:bg-neutral-900/50 hover:bg-amber-50/30 dark:hover:bg-amber-950/20 group"
+                  className="border-2 border-dashed border-gray-300 dark:border-gray-700 hover:border-amber-500 dark:hover:border-amber-500 rounded-3xl p-8 text-center cursor-pointer transition bg-gray-50/50 dark:bg-[#1A1A1C]/50 hover:bg-amber-50/30 dark:hover:bg-amber-950/20 group"
                 >
-                  <Upload size={36} className="mx-auto mb-3 text-neutral-400 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition" />
-                  <h4 className="text-sm font-bold text-neutral-800 dark:text-neutral-200 mb-1">
+                  <Upload size={36} className="mx-auto mb-3 text-gray-400 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition" />
+                  <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-1">
                     Selecciona tu archivo de respaldo
                   </h4>
-                  <p className="text-xs text-neutral-500 dark:text-neutral-400 max-w-xs mx-auto">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 max-w-xs mx-auto">
                     Formatos admitidos: <code>.tnotes</code> o <code>.json</code>
                   </p>
                   <input
@@ -284,17 +284,17 @@ export const BackupModal: React.FC<BackupModalProps> = ({
 
               {/* Archivo Seleccionado */}
               {selectedFileName && (
-                <div className="flex items-center justify-between p-3 rounded-2xl bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700">
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-gray-100 dark:bg-[#28292A] border border-gray-200 dark:border-gray-700">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <FileCheck size={20} className="text-amber-600 dark:text-amber-400 shrink-0" />
-                    <span className="text-xs font-bold text-neutral-800 dark:text-neutral-100 truncate">
+                    <span className="text-xs font-bold text-gray-900 dark:text-gray-100 truncate">
                       {selectedFileName}
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={handleResetImport}
-                    className="text-xs text-neutral-500 hover:text-red-500 dark:hover:text-red-400 font-semibold px-2 py-1 rounded-lg transition"
+                    className="text-xs text-gray-500 hover:text-red-500 dark:hover:text-red-400 font-semibold px-2 py-1 rounded-lg transition"
                   >
                     Cambiar
                   </button>
@@ -334,8 +334,8 @@ export const BackupModal: React.FC<BackupModalProps> = ({
               {/* Previsualización del Plan de Fusión */}
               {importPlan && !executionResult && (
                 <div className="space-y-3.5">
-                  <div className="p-3.5 rounded-2xl bg-neutral-50 dark:bg-neutral-900/50 border border-neutral-200 dark:border-neutral-800 space-y-2.5">
-                    <h4 className="text-xs font-bold text-neutral-700 dark:text-neutral-300 flex items-center justify-between">
+                  <div className="p-3.5 rounded-2xl bg-gray-50 dark:bg-[#1A1A1C] border border-gray-200 dark:border-gray-800 space-y-2.5">
+                    <h4 className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center justify-between">
                       <span>Resumen de Fusión Segura</span>
                       <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
                         Modo Fusión (Merge)
@@ -343,21 +343,21 @@ export const BackupModal: React.FC<BackupModalProps> = ({
                     </h4>
 
                     <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="p-2 rounded-xl bg-white dark:bg-[#1E1E1E] border border-neutral-100 dark:border-neutral-800">
-                        <span className="text-neutral-500 dark:text-neutral-400 block text-[11px]">Canciones nuevas:</span>
+                      <div className="p-2 rounded-xl bg-white dark:bg-[#202124] border border-gray-100 dark:border-gray-800">
+                        <span className="text-gray-500 dark:text-gray-400 block text-[11px]">Canciones nuevas:</span>
                         <strong className="text-green-600 dark:text-green-400 text-sm">+{importPlan.songsToAdd.length}</strong>
                       </div>
-                      <div className="p-2 rounded-xl bg-white dark:bg-[#1E1E1E] border border-neutral-100 dark:border-neutral-800">
-                        <span className="text-neutral-500 dark:text-neutral-400 block text-[11px]">Duplicados omitidos:</span>
-                        <strong className="text-neutral-600 dark:text-neutral-400 text-sm">{importPlan.songsToSkipIdentical.length}</strong>
+                      <div className="p-2 rounded-xl bg-white dark:bg-[#202124] border border-gray-100 dark:border-gray-800">
+                        <span className="text-gray-500 dark:text-gray-400 block text-[11px]">Duplicados omitidos:</span>
+                        <strong className="text-gray-600 dark:text-gray-400 text-sm">{importPlan.songsToSkipIdentical.length}</strong>
                       </div>
-                      <div className="p-2 rounded-xl bg-white dark:bg-[#1E1E1E] border border-neutral-100 dark:border-neutral-800">
-                        <span className="text-neutral-500 dark:text-neutral-400 block text-[11px]">Listas nuevas:</span>
+                      <div className="p-2 rounded-xl bg-white dark:bg-[#202124] border border-gray-100 dark:border-gray-800">
+                        <span className="text-gray-500 dark:text-gray-400 block text-[11px]">Listas nuevas:</span>
                         <strong className="text-blue-600 dark:text-blue-400 text-sm">+{importPlan.setlistsToAdd.length}</strong>
                       </div>
-                      <div className="p-2 rounded-xl bg-white dark:bg-[#1E1E1E] border border-neutral-100 dark:border-neutral-800">
-                        <span className="text-neutral-500 dark:text-neutral-400 block text-[11px]">Listas omitidas:</span>
-                        <strong className="text-neutral-600 dark:text-neutral-400 text-sm">{importPlan.setlistsToSkipIdentical.length}</strong>
+                      <div className="p-2 rounded-xl bg-white dark:bg-[#202124] border border-gray-100 dark:border-gray-800">
+                        <span className="text-gray-500 dark:text-gray-400 block text-[11px]">Listas omitidas:</span>
+                        <strong className="text-gray-600 dark:text-gray-400 text-sm">{importPlan.setlistsToSkipIdentical.length}</strong>
                       </div>
                     </div>
 
@@ -377,12 +377,12 @@ export const BackupModal: React.FC<BackupModalProps> = ({
 
                     {/* Checkbox de Preferencias */}
                     {importPlan.settings && (importPlan.settings.notation || importPlan.settings.theme) && (
-                      <label className="flex items-center gap-2.5 pt-1 text-xs text-neutral-700 dark:text-neutral-300 cursor-pointer">
+                      <label className="flex items-center gap-2.5 pt-1 text-xs text-gray-700 dark:text-gray-300 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={importSettings}
                           onChange={e => setImportSettings(e.target.checked)}
-                          className="rounded border-neutral-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                          className="rounded border-gray-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
                         />
                         <span>
                           Importar preferencias de entorno ({importPlan.settings.notation ? `Notación: ${importPlan.settings.notation}` : ''} {importPlan.settings.theme ? `Tema: ${importPlan.settings.theme}` : ''})
@@ -395,7 +395,7 @@ export const BackupModal: React.FC<BackupModalProps> = ({
                     <button
                       type="button"
                       onClick={handleResetImport}
-                      className="flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition cursor-pointer"
+                      className="flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-semibold bg-gray-100 dark:bg-[#28292A] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition cursor-pointer"
                     >
                       Cancelar
                     </button>
@@ -403,7 +403,7 @@ export const BackupModal: React.FC<BackupModalProps> = ({
                       type="button"
                       onClick={handleExecuteImport}
                       disabled={isProcessing}
-                      className="flex-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold bg-amber-600 hover:bg-amber-700 active:scale-98 text-white shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      className="flex-2 py-3 px-4 rounded-full text-xs sm:text-sm font-bold bg-amber-600 hover:bg-amber-700 active:scale-98 text-white shadow-md transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                     >
                       <CheckCircle2 size={18} />
                       <span>{isProcessing ? 'Procesando...' : 'Confirmar Fusión'}</span>

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Check, RefreshCw, Globe2 } from 'lucide-react';
 import { transposeText, TranspositionEngine } from '../../domain/music/TranspositionEngine';
-import { KeyDetector, detectKey } from '../../domain/music/KeyDetector';
+import { KeyDetector } from '../../domain/music/KeyDetector';
 import { formatKeyName, NotationSystem } from '../../domain/music/NotationSystem';
 import { NotationTranslator, NotationStyle } from '../../domain/music/NotationTranslator';
 import { normalizeFlatsToSharps } from '../../domain/music/PitchClass';
@@ -209,7 +209,6 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation, on
 
     const isTitleEmpty = !newTitle || newTitle.trim() === '';
     const isContentEmpty = !newContent || newContent.trim() === '';
-    // Only persist while typing if there is actual content or title
     if (!isTitleEmpty || !isContentEmpty) {
       NoteStorageService.save(updated);
     }
@@ -220,7 +219,6 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation, on
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    // When editing directly in trumpet, ensure any pasted flats are normalized to sharps
     const newText = activeInstrument === 'trumpet' ? normalizeFlatsToSharps(e.target.value) : e.target.value;
     updateStateAndStorage(title, newText, activeInstrument, newText, activeInstrument);
   };
@@ -229,19 +227,15 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation, on
     const nextInstrument: 'keyboard' | 'trumpet' = activeInstrument === 'keyboard' ? 'trumpet' : 'keyboard';
     let nextContent: string;
     if (nextInstrument === baseReference.instrument) {
-      // Regreso a la referencia original estable: 0 deriva acumulada
       nextContent = nextInstrument === 'trumpet'
         ? normalizeFlatsToSharps(baseReference.content)
         : baseReference.content;
     } else if (nextInstrument === 'trumpet') {
-      // Base en teclado transpuesta a trompeta (+2 semitonos)
       nextContent = normalizeFlatsToSharps(transposeText(baseReference.content, 'KEYBOARD_TO_TRUMPET'));
     } else {
-      // Base en trompeta transpuesta a teclado (-2 semitonos)
       nextContent = transposeText(baseReference.content, 'TRUMPET_TO_KEYBOARD');
     }
 
-    // Conservar baseReference original al alternar modo
     updateStateAndStorage(title, nextContent, nextInstrument, baseReference.content, baseReference.instrument);
   };
 
@@ -250,8 +244,6 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation, on
     const isContentEmpty = !content || content.trim() === '';
 
     if (isTitleEmpty && isContentEmpty) {
-      // Si el usuario entró a la nota pero NO escribió nada:
-      // NO guardarla. Si existía una nota previa con este ID que ahora quedó vacía, eliminarla.
       if (note?.id) {
         NoteStorageService.delete(note.id);
       }
@@ -291,13 +283,13 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation, on
     }
   };
 
-  const handleNaturalNoteInsert = (e: React.SyntheticEvent, note: string) => {
+  const handleNaturalNoteInsert = (e: React.SyntheticEvent, noteStr: string) => {
     e.preventDefault();
     dismissKeyboard();
     const textarea = textareaRef.current;
     if (!textarea) {
       const needsSpace = content.length > 0 && !content.endsWith(' ') && !content.endsWith('\n');
-      const toInsert = `${needsSpace ? ' ' : ''}${note} `;
+      const toInsert = `${needsSpace ? ' ' : ''}${noteStr} `;
       updateStateAndStorage(title, `${content}${toInsert}`, activeInstrument);
       return;
     }
@@ -306,7 +298,7 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation, on
     const before = content.substring(0, start);
     const after = content.substring(end);
     const needsSpace = before.length > 0 && !/[\s\n]$/.test(before);
-    const toInsert = `${needsSpace ? ' ' : ''}${note} `;
+    const toInsert = `${needsSpace ? ' ' : ''}${noteStr} `;
     const newContent = `${before}${toInsert}${after}`;
     updateStateAndStorage(title, newContent, activeInstrument);
     const nextPos = start + toInsert.length;
@@ -331,7 +323,7 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation, on
     }
     const start = textarea.selectionStart ?? content.length;
     const end = textarea.selectionEnd ?? content.length;
-    let before = content.substring(0, start).replace(/\s+$/, ''); // Une el '#' a la nota anterior
+    let before = content.substring(0, start).replace(/\s+$/, '');
     const after = content.substring(end);
     const toInsert = `# `;
     const newContent = `${before}${toInsert}${after}`;
@@ -380,7 +372,6 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation, on
 
     const textarea = textareaRef.current;
     if (!textarea) {
-      // Si no hay cursor, eliminar la última nota/token junto con espacios finales
       const newContent = content.trimEnd().replace(/(\S+|\n)\s*$/, '');
       updateStateAndStorage(title, newContent, activeInstrument);
       return;
@@ -395,7 +386,6 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation, on
     const after = content.substring(end);
 
     if (start !== end) {
-      // Si hay texto seleccionado, borrar la selección
       const newContent = `${content.substring(0, start)}${after}`;
       updateStateAndStorage(title, newContent, activeInstrument);
       requestAnimationFrame(() => {
@@ -406,12 +396,10 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation, on
       return;
     }
 
-    // Si no hay selección: eliminar en UN SOLO CLIC el espacio final Y el token anterior (ej. "D# ", "Fa ", "/ ")
-    // Regex: detecta si termina en espacios y borra la palabra/símbolo anterior junto con los espacios
     const match = before.match(/(\S+|\n)\s*$/);
     let deleteCount = 1;
     if (match) {
-      deleteCount = match[0].length; // Borra tanto el espacio como la nota completa previa
+      deleteCount = match[0].length;
     }
 
     const newBefore = before.slice(0, -deleteCount);
@@ -439,115 +427,118 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation, on
   const quickAssistNotes = notationStyle === 'ENGLISH' ? baseNotesEn : baseNotesNat;
 
   return (
-    <div className="flex flex-col w-full h-full pt-4 px-4 pb-36 sm:pb-40">
-      <div className="flex flex-col gap-4 mb-6">
+    <div className="flex flex-col w-full max-w-4xl mx-auto h-full pt-4 px-4 sm:px-6 pb-48 sm:pb-52 animate-in fade-in duration-150">
+      
+      {/* Cabecera Limpia al Estilo Google Keep */}
+      <div className="flex flex-col gap-3.5 mb-5 border-b border-gray-100 dark:border-gray-800 pb-4">
         
-        {/* Header / Actions */}
-        <div className="flex items-center justify-end gap-2">
+        {/* Fila 1: Botón Guardar / Salir y Título */}
+        <div className="flex items-center justify-between gap-3">
+          <input 
+            type="text" 
+            placeholder="Título de la canción..."
+            className="text-2xl sm:text-3xl font-extrabold bg-transparent outline-none w-full text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 tracking-tight"
+            value={title}
+            onChange={handleTitleChange}
+          />
+
           <button
+            type="button"
             onClick={handleSaveAndExit}
-            className="w-11 h-11 flex items-center justify-center bg-amber-600 hover:bg-amber-700 text-white rounded-full shadow-md transition transform active:scale-95"
-            title="Confirmar y Guardar"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-full shadow-sm hover:shadow-md transition transform active:scale-95 text-xs sm:text-sm font-bold shrink-0 cursor-pointer"
+            title="Guardar y volver a la biblioteca"
           >
-            <Check size={24} strokeWidth={3} />
+            <Check size={18} strokeWidth={2.8} />
+            <span className="hidden sm:inline">Listo</span>
           </button>
         </div>
-
-        <input 
-          type="text" 
-          placeholder="Título de la canción..."
-          className="text-3xl font-bold bg-transparent outline-none w-full text-[#202124] dark:text-[#E8EAED] placeholder-gray-400 dark:placeholder-gray-500"
-          value={title}
-          onChange={handleTitleChange}
-        />
         
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          {activeInstrument === 'trumpet' ? (
-            <>
-              {/* Badge Principal: Trompeta (resaltado en ámbar/dorado) */}
-              <div className="bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 px-3.5 py-1.5 rounded-full text-sm font-semibold shadow-sm flex items-center gap-2">
-                <span>🎺 Trompeta:</span>
-                <span className="bg-white dark:bg-[#1F1F1F] px-2 py-0.5 rounded-full font-bold text-amber-900 dark:text-amber-200">
-                  {dualKeyResult.trumpetKey}
-                </span>
-              </div>
+        {/* Fila 2: Insignias de Tonalidad y Controles Agrupados */}
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          
+          {/* Bloque Armónico: Tonalidades Duales */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {activeInstrument === 'trumpet' ? (
+              <>
+                <div className="inline-flex items-center gap-1.5 bg-amber-100/90 dark:bg-amber-950/50 text-amber-900 dark:text-amber-300 border border-amber-300/80 dark:border-amber-700/60 px-3 py-1 rounded-full text-xs font-bold shadow-2xs">
+                  <span>🎺 Trompeta:</span>
+                  <span className="bg-white dark:bg-[#1A1A1C] px-2 py-0.5 rounded-full font-black text-amber-900 dark:text-amber-200">
+                    {dualKeyResult.trumpetKey}
+                  </span>
+                </div>
+                <div className="inline-flex items-center gap-1.5 bg-blue-50/70 dark:bg-blue-950/30 text-blue-800/80 dark:text-blue-300/80 border border-blue-200/50 dark:border-blue-900/40 px-2.5 py-1 rounded-full text-xs font-medium">
+                  <span>🎹 Teclado:</span>
+                  <span className="font-semibold">{dualKeyResult.concertKey}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="inline-flex items-center gap-1.5 bg-blue-100/90 dark:bg-blue-950/50 text-blue-900 dark:text-blue-300 border border-blue-300/80 dark:border-blue-700/60 px-3 py-1 rounded-full text-xs font-bold shadow-2xs">
+                  <span>🎹 Teclado:</span>
+                  <span className="bg-white dark:bg-[#1A1A1C] px-2 py-0.5 rounded-full font-black text-blue-900 dark:text-blue-200">
+                    {dualKeyResult.concertKey}
+                  </span>
+                </div>
+                <div className="inline-flex items-center gap-1.5 bg-amber-50/70 dark:bg-amber-950/30 text-amber-800/80 dark:text-amber-300/80 border border-amber-200/50 dark:border-amber-900/40 px-2.5 py-1 rounded-full text-xs font-medium">
+                  <span>🎺 Trompeta:</span>
+                  <span className="font-semibold">{dualKeyResult.trumpetKey}</span>
+                </div>
+              </>
+            )}
+          </div>
 
-              {/* Badge Secundario: Teclado (atenuado) */}
-              <div className="bg-gray-100 dark:bg-gray-800/80 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700/60 px-3 py-1.5 rounded-full text-sm font-medium shadow-xs flex items-center gap-2 opacity-85">
-                <span>🎹 Teclado:</span>
-                <span className="bg-white dark:bg-[#1F1F1F] px-2 py-0.5 rounded-full font-semibold">
-                  {dualKeyResult.concertKey}
-                </span>
-              </div>
-            </>
-          ) : (
-            <>
-              {/* Badge Principal: Teclado (resaltado en ámbar/dorado) */}
-              <div className="bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 px-3.5 py-1.5 rounded-full text-sm font-semibold shadow-sm flex items-center gap-2">
-                <span>🎹 Teclado:</span>
-                <span className="bg-white dark:bg-[#1F1F1F] px-2 py-0.5 rounded-full font-bold text-amber-900 dark:text-amber-200">
-                  {dualKeyResult.concertKey}
-                </span>
-              </div>
+          {/* Bloque de Acciones Rápidas */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <button 
+              type="button"
+              onClick={() => setIsTransposeModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white dark:bg-[#202124] hover:bg-gray-100 dark:hover:bg-[#2A2B2D] text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700/80 transition shadow-2xs cursor-pointer active:scale-95"
+              title="Cambiar Tonalidad de la canción"
+            >
+              <RefreshCw size={13} className="text-amber-500" />
+              <span>Cambiar Tono</span>
+            </button>
 
-              {/* Badge Secundario: Trompeta (atenuado) */}
-              <div className="bg-gray-100 dark:bg-gray-800/80 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700/60 px-3 py-1.5 rounded-full text-sm font-medium shadow-xs flex items-center gap-2 opacity-85">
-                <span>🎺 Trompeta:</span>
-                <span className="bg-white dark:bg-[#1F1F1F] px-2 py-0.5 rounded-full font-semibold">
-                  {dualKeyResult.trumpetKey}
-                </span>
-              </div>
-            </>
-          )}
+            <button 
+              type="button"
+              onClick={handleToggleNotation}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white dark:bg-[#202124] hover:bg-gray-100 dark:hover:bg-[#2A2B2D] text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700/80 transition shadow-2xs cursor-pointer active:scale-95"
+              title="Conmutar notación (Inglés ↔ Solfeo)"
+            >
+              <Globe2 size={13} className="text-amber-500" />
+              <span>{notationStyle === 'ENGLISH' ? 'EN' : 'Solfeo'}</span>
+            </button>
 
-          <button 
-            type="button"
-            onClick={() => setIsTransposeModalOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-semibold transition shadow-sm border border-amber-600 bg-amber-500 hover:bg-amber-600 text-white cursor-pointer active:scale-95"
-            title="Cambiar Tonalidad de la canción"
-          >
-            <RefreshCw size={15} />
-            <span>Cambiar Tono</span>
-          </button>
-
-          <button 
-            type="button"
-            onClick={handleToggleNotation}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-semibold transition shadow-sm border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-[#28292A] hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 cursor-pointer active:scale-95"
-            title="Conmutar notación (Inglés ↔ Solfeo)"
-          >
-            <Globe2 size={16} className="text-amber-500" />
-            <span>{notationStyle === 'ENGLISH' ? 'EN' : 'Solfeo'}</span>
-          </button>
-
-          <button 
-            type="button"
-            onClick={handleToggleInstrument}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold transition shadow-sm border cursor-pointer active:scale-95 ${
-              activeInstrument === 'keyboard' 
-                ? 'bg-blue-600 hover:bg-blue-700 text-white border-blue-700' 
-                : 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600'
-            }`}
-            title="Conmutar instrumento (transpone ±2 semitonos el texto actual)"
-          >
-            {activeInstrument === 'keyboard' ? '🎹 Teclado' : '🎺 Trompeta'}
-          </button>
+            <button 
+              type="button"
+              onClick={handleToggleInstrument}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition shadow-xs cursor-pointer active:scale-95 ${
+                activeInstrument === 'keyboard' 
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                  : 'bg-amber-600 hover:bg-amber-700 text-white'
+              }`}
+              title="Alternar instrumento activo (transpone notas actuales)"
+            >
+              <span>{activeInstrument === 'keyboard' ? '🎹 Teclado' : '🎺 Trompeta'}</span>
+            </button>
+          </div>
         </div>
       </div>
 
+      {/* Área de Escritura Protagonista */}
       <textarea
         ref={textareaRef}
         value={content}
         onChange={handleTextChange}
         inputMode={isKeyboardMode ? 'text' : 'none'}
-        placeholder="Escribe o toca las notas aquí..."
-        className="w-full flex-1 bg-transparent resize-none outline-none text-xl md:text-2xl text-[#202124] dark:text-[#E8EAED] leading-relaxed font-mono min-h-[50vh]"
+        placeholder="Escribe aquí las notas o acordes (ej. C E G B o Do Mi Sol)..."
+        className="w-full flex-1 bg-transparent resize-none outline-none text-xl sm:text-2xl text-gray-900 dark:text-gray-100 leading-relaxed font-mono min-h-[55vh]"
       />
 
-      {/* Two-Tier Assistant Toolbar */}
-      <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 bg-white dark:bg-[#28292A] rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 p-2 sm:p-2.5 flex flex-col gap-2 z-40 w-[96%] sm:w-auto max-w-[640px]">
+      {/* Barra Asistente Táctil de 2 Niveles (Estilo Piano Card Keep) */}
+      <div className="fixed sm:absolute bottom-3 sm:bottom-5 left-1/2 -translate-x-1/2 bg-white/95 dark:bg-[#202124]/95 backdrop-blur-md rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200/90 dark:border-gray-700/80 p-2 sm:p-2.5 flex flex-col gap-1.5 z-40 w-[96%] max-w-[620px]">
         
-        {/* FILA SUPERIOR: EXCLUSIVAMENTE NOTAS AMPLIADAS Y SOSTENIDO (#) */}
+        {/* FILA SUPERIOR: NOTAS NATURALES Y SOSTENIDO (#) */}
         <div className="flex items-center justify-between gap-1 sm:gap-1.5 w-full">
           {quickAssistNotes.map((n) => (
             <button 
@@ -555,32 +546,31 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation, on
               key={n} 
               onPointerDown={(e) => { e.preventDefault(); dismissKeyboard(); }}
               onClick={(e) => handleNaturalNoteInsert(e, n)}
-              className="flex-1 min-w-[32px] sm:min-w-[42px] h-12 sm:h-14 flex items-center justify-center bg-white dark:bg-[#28292A] hover:bg-amber-50 dark:hover:bg-amber-900/25 active:bg-amber-100 text-amber-700 dark:text-amber-500 border border-amber-200 dark:border-amber-800/40 rounded-xl font-bold text-base sm:text-xl transition active:scale-95 cursor-pointer select-none shadow-xs"
+              className="flex-1 min-w-[32px] sm:min-w-[42px] h-12 sm:h-13 flex items-center justify-center bg-white dark:bg-[#28292A] hover:bg-amber-50 dark:hover:bg-amber-950/30 active:bg-amber-100 text-amber-700 dark:text-amber-400 border border-gray-200/80 dark:border-gray-700/70 rounded-xl font-bold text-base sm:text-lg transition-all active:scale-95 cursor-pointer select-none shadow-2xs"
             >
               {n}
             </button>
           ))}
           
-          {/* Botón Sostenido (#) integrado en la fila superior */}
           <button 
             type="button"
             onPointerDown={(e) => { e.preventDefault(); dismissKeyboard(); }}
             onClick={(e) => handleSharpInsert(e)}
-            className="flex-1 min-w-[32px] sm:min-w-[42px] h-12 sm:h-14 flex items-center justify-center bg-gray-100 dark:bg-[#1F1F1F] hover:bg-gray-200 dark:hover:bg-gray-800 active:bg-gray-300 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700/60 rounded-xl font-bold text-lg sm:text-2xl transition active:scale-95 cursor-pointer select-none shadow-xs"
+            className="flex-1 min-w-[32px] sm:min-w-[42px] h-12 sm:h-13 flex items-center justify-center bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white rounded-xl font-black text-lg sm:text-xl transition-all active:scale-95 cursor-pointer select-none shadow-xs"
             title="Sostenido (#)"
           >
             #
           </button>
         </div>
 
-        {/* FILA INFERIOR: UTILIDADES, PUNTUACIÓN, BORRAR Y TECLADO */}
-        <div className="flex items-center justify-between gap-1.5 sm:gap-2 w-full pt-1 border-t border-gray-100 dark:border-gray-700/60">
+        {/* FILA INFERIOR: UTILIDADES, COMPÁS, BORRADO NEUTRAL Y TECLADO VIRTUAL */}
+        <div className="flex items-center justify-between gap-1.5 sm:gap-2 w-full pt-1 border-t border-gray-100 dark:border-gray-800">
           {/* Salto de línea */}
           <button 
             type="button"
             onPointerDown={(e) => { e.preventDefault(); dismissKeyboard(); }}
             onClick={(e) => handleInsertSymbol(e, '\n')}
-            className="flex-1 h-10 sm:h-11 flex items-center justify-center bg-gray-100 dark:bg-[#1F1F1F] hover:bg-gray-200 dark:hover:bg-gray-800 active:bg-gray-300 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700/60 rounded-xl font-bold text-base sm:text-lg transition active:scale-95 cursor-pointer select-none"
+            className="flex-1 h-9 sm:h-10 flex items-center justify-center bg-gray-100/90 dark:bg-[#28292A] hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-sm sm:text-base transition active:scale-95 cursor-pointer select-none"
             title="Salto de línea (↵)"
           >
             ↵
@@ -591,7 +581,7 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation, on
             type="button"
             onPointerDown={(e) => { e.preventDefault(); dismissKeyboard(); }}
             onClick={(e) => handleInsertSymbol(e, '/ ')}
-            className="flex-1 h-10 sm:h-11 flex items-center justify-center bg-gray-100 dark:bg-[#1F1F1F] hover:bg-gray-200 dark:hover:bg-gray-800 active:bg-gray-300 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700/60 rounded-xl font-bold text-base sm:text-lg transition active:scale-95 cursor-pointer select-none"
+            className="flex-1 h-9 sm:h-10 flex items-center justify-center bg-gray-100/90 dark:bg-[#28292A] hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-sm sm:text-base transition active:scale-95 cursor-pointer select-none"
             title="Separador de compás (/)"
           >
             /
@@ -602,29 +592,29 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation, on
             type="button"
             onPointerDown={(e) => { e.preventDefault(); dismissKeyboard(); }}
             onClick={(e) => handleInsertSymbol(e, '*')}
-            className="flex-1 h-10 sm:h-11 flex items-center justify-center bg-gray-100 dark:bg-[#1F1F1F] hover:bg-gray-200 dark:hover:bg-gray-800 active:bg-gray-300 text-gray-800 dark:text-gray-200 border border-gray-200 dark:border-gray-700/60 rounded-xl font-bold text-base sm:text-lg transition active:scale-95 cursor-pointer select-none"
-            title="Asterisco para anotaciones (*)"
+            className="flex-1 h-9 sm:h-10 flex items-center justify-center bg-gray-100/90 dark:bg-[#28292A] hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold text-sm sm:text-base transition active:scale-95 cursor-pointer select-none"
+            title="Anotación (*)"
           >
             *
           </button>
 
-          {/* Botón Borrar (Backspace) */}
+          {/* Botón Borrar: Aspecto NEUTRAL (no destructivo como requerido) */}
           <button 
             type="button"
             onPointerDown={(e) => { e.preventDefault(); dismissKeyboard(); }}
             onClick={handleBackspace}
-            className="flex-1 h-10 sm:h-11 flex items-center justify-center bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-900/30 active:bg-red-200 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/30 rounded-xl font-bold text-base sm:text-lg transition active:scale-95 cursor-pointer select-none"
-            title="Borrar (⌫)"
+            className="flex-1 h-9 sm:h-10 flex items-center justify-center bg-gray-200/80 dark:bg-[#323336] hover:bg-gray-300 dark:hover:bg-[#3D3E42] active:bg-gray-400 text-gray-800 dark:text-gray-200 rounded-xl font-bold text-sm sm:text-base transition active:scale-95 cursor-pointer select-none border border-gray-300/40 dark:border-gray-600/40"
+            title="Borrar nota o símbolo anterior (⌫)"
           >
             ⌫
           </button>
 
-          {/* Botón para Abrir el Teclado Virtual del Celular */}
+          {/* Abrir Teclado Virtual del Celular */}
           <button 
             type="button"
             onClick={handleToggleKeyboard}
-            className="flex-1 h-10 sm:h-11 flex items-center justify-center bg-blue-50 dark:bg-blue-950/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 active:bg-blue-200 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900/30 rounded-xl font-bold text-base sm:text-lg transition active:scale-95 cursor-pointer select-none"
-            title="Abrir teclado virtual (⌨️)"
+            className="flex-1 h-9 sm:h-10 flex items-center justify-center bg-blue-50/80 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-900/40 active:bg-blue-200 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/40 rounded-xl font-bold text-sm sm:text-base transition active:scale-95 cursor-pointer select-none"
+            title="Abrir teclado del teléfono para texto libre"
           >
             ⌨️
           </button>

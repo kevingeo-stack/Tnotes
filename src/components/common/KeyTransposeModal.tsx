@@ -4,7 +4,7 @@ import { normalizeFlatsToSharps, normalizeKeyName } from '../../domain/music/Pit
 
 interface KeyTransposeModalProps {
   isOpen: boolean;
-  currentKey: string; // ej. "F# Mayor" o "Re Menor"
+  currentKey: string;
   onConfirm: (targetKey: string) => void;
   onCancel: () => void;
 }
@@ -63,15 +63,22 @@ export const KeyTransposeModal: React.FC<KeyTransposeModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onCancel}>
-      <div className="w-full max-w-xs bg-white dark:bg-[#1E1E1E] rounded-2xl p-5 shadow-2xl border border-neutral-200 dark:border-neutral-800 flex flex-col gap-4 text-center" onClick={e => e.stopPropagation()}>
-        <h3 className="text-base font-bold text-neutral-800 dark:text-neutral-100 flex items-center justify-center gap-2">
-          <RefreshCw size={18} className="text-amber-500" />
-          Cambiar Tonalidad
-        </h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150" onClick={onCancel}>
+      <div 
+        className="w-full max-w-sm bg-white dark:bg-[#202124] rounded-3xl p-6 shadow-2xl border border-gray-200 dark:border-gray-700/80 flex flex-col gap-4 text-center" 
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-center gap-2">
+          <span className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400">
+            <RefreshCw size={18} />
+          </span>
+          <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100">
+            Cambiar Tonalidad
+          </h3>
+        </div>
 
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">
-          Tono actual: <span className="font-bold text-amber-600 dark:text-amber-400">{normalizedCurrent || 'Sin tono'}</span>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          Tonalidad actual: <strong className="text-amber-600 dark:text-amber-400">{normalizedCurrent || 'Sin tono'}</strong>
         </p>
 
         <div className="grid grid-cols-4 gap-2 my-1">
@@ -80,10 +87,10 @@ export const KeyTransposeModal: React.FC<KeyTransposeModalProps> = ({
               key={key}
               type="button"
               onClick={() => setSelectedRoot(key)}
-              className={`py-2 rounded-xl text-sm font-bold transition-all cursor-pointer ${
+              className={`py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                 selectedRoot === key
-                  ? 'bg-amber-600 text-white shadow-md scale-105'
-                  : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200'
+                  ? 'bg-amber-600 text-white shadow-sm scale-102 font-black'
+                  : 'bg-gray-100 dark:bg-[#2A2B2D] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#343538]'
               }`}
             >
               {key}
@@ -91,11 +98,19 @@ export const KeyTransposeModal: React.FC<KeyTransposeModalProps> = ({
           ))}
         </div>
 
-        <div className="flex gap-2">
-          <button type="button" onClick={onCancel} className="flex-1 py-2 rounded-xl text-sm font-semibold bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-700 transition">
+        <div className="flex gap-2 pt-2">
+          <button 
+            type="button" 
+            onClick={onCancel} 
+            className="flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-gray-100 dark:bg-[#2A2B2D] text-gray-700 dark:text-gray-300 hover:bg-gray-200 transition cursor-pointer"
+          >
             Cancelar
           </button>
-          <button type="button" onClick={handleApply} className="flex-1 py-2 rounded-xl text-sm font-semibold bg-amber-600 hover:bg-amber-700 text-white shadow-md cursor-pointer transition">
+          <button 
+            type="button" 
+            onClick={handleApply} 
+            className="flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition active:scale-95 cursor-pointer"
+          >
             Transponer
           </button>
         </div>

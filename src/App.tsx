@@ -200,12 +200,12 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen bg-[#F8F9FA] dark:bg-[#1F1F1F] text-[#202124] dark:text-[#E8EAED] selection:bg-amber-500/30 font-sans overflow-hidden transition-colors duration-200">
+    <div className="flex h-screen bg-[#F8F9FA] dark:bg-[#141416] text-[#202124] dark:text-[#E8EAED] selection:bg-amber-500/30 font-sans overflow-hidden transition-colors duration-150">
       
-      {/* SIDEBAR DESKTOP */}
-      <aside className="hidden lg:flex flex-col w-72 bg-white dark:bg-[#28292A] border-r border-gray-200 dark:border-gray-800 shrink-0 z-10 transition-colors">
+      {/* SIDEBAR DESKTOP (Google Keep Drawer Style) */}
+      <aside className="hidden lg:flex flex-col w-72 bg-white dark:bg-[#202124] border-r border-gray-200 dark:border-gray-800 shrink-0 z-10 transition-colors">
         <div className="p-6 pb-2 flex items-center justify-between">
-          <h1 className="text-2xl font-bold flex items-center gap-2 text-amber-600 dark:text-amber-500">
+          <h1 className="text-2xl font-black flex items-center gap-2 text-amber-600 dark:text-amber-500 tracking-tight">
             <span className="text-3xl">🎺</span> TNotes
           </h1>
           <PwaInstallButton />
@@ -214,53 +214,55 @@ export default function App() {
         <div className="px-4 py-4">
           <button 
             onClick={() => handleNewNote(currentView !== 'editor' ? currentView : 'grouping')}
-            className="flex items-center gap-3 bg-white dark:bg-[#1F1F1F] border border-gray-200 dark:border-gray-700 hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-800 transition px-6 py-4 rounded-2xl w-full text-lg font-bold text-gray-800 dark:text-gray-200 cursor-pointer"
+            className="flex items-center gap-3.5 bg-white dark:bg-[#202124] border border-gray-200 dark:border-gray-700 hover:border-amber-400 dark:hover:border-amber-500/70 hover:shadow-md transition-all px-5 py-3.5 rounded-2xl w-full text-base font-bold text-gray-800 dark:text-gray-100 cursor-pointer shadow-xs active:scale-98"
           >
-            <Plus size={24} className="text-amber-500" />
-            Nueva Nota
+            <div className="w-8 h-8 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+              <Plus size={20} strokeWidth={2.5} />
+            </div>
+            <span>Nueva Canción</span>
           </button>
         </div>
 
-        <nav className="flex-1 py-4 pr-4 flex flex-col gap-1">
-          <NavItem view="setlist" icon={ListMusic} label="🎵 Modo Lista (Alabanzas en Vivo)" />
+        <nav className="flex-1 py-3 pr-3 flex flex-col gap-1">
+          <NavItem view="setlist" icon={ListMusic} label="Modo Lista (Atril)" />
           <NavItem view="grouping" icon={List} label="Tonalidades" />
           <NavItem view="pitch-space" icon={Music} label="Espacio Armónico" />
           <NavItem view="editor" icon={Edit3} label="Editor de Notas" />
         </nav>
 
-        <div className="p-4 flex flex-col gap-2 border-t border-gray-200 dark:border-gray-800">
+        <div className="p-4 flex flex-col gap-1.5 border-t border-gray-100 dark:border-gray-800">
           <button 
             onClick={() => setIsBackupModalOpen(true)}
-            className="flex items-center justify-between px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-[#2A2B2D] transition text-sm font-semibold text-gray-700 dark:text-gray-300 cursor-pointer"
+            className="flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-[#2A2B2D] transition text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 cursor-pointer"
           >
-            <span className="flex items-center gap-3">
-              <Download size={18} className="text-amber-500" />
+            <span className="flex items-center gap-2.5">
+              <Download size={17} className="text-amber-500" />
               Copia de Seguridad
             </span>
-            <span className="bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded text-xs font-bold">
+            <span className="bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200/50 dark:border-amber-900/30 px-2 py-0.5 rounded text-[11px] font-bold">
               .tnotes
             </span>
           </button>
 
           <button 
             onClick={toggleNotation}
-            className="flex items-center justify-between px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-[#2A2B2D] transition text-sm font-semibold text-gray-700 dark:text-gray-300 cursor-pointer"
+            className="flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-[#2A2B2D] transition text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 cursor-pointer"
           >
-            <span className="flex items-center gap-3">
-              <Globe2 size={18} className="text-gray-500" />
+            <span className="flex items-center gap-2.5">
+              <Globe2 size={17} className="text-gray-400" />
               Notación
             </span>
-            <span className="bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded text-xs font-bold">
+            <span className="bg-gray-100 dark:bg-gray-700/80 px-2.5 py-0.5 rounded text-[11px] font-bold text-gray-700 dark:text-gray-200">
               {notation === 'en' ? 'EN' : 'Do-Re-Mi'}
             </span>
           </button>
           
           <button 
             onClick={toggleDarkMode}
-            className="flex items-center justify-between px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-[#2A2B2D] transition text-sm font-semibold text-gray-700 dark:text-gray-300 cursor-pointer"
+            className="flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-[#2A2B2D] transition text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 cursor-pointer"
           >
-            <span className="flex items-center gap-3">
-              {isDarkMode ? <Sun size={18} className="text-gray-500" /> : <Moon size={18} className="text-gray-500" />}
+            <span className="flex items-center gap-2.5">
+              {isDarkMode ? <Sun size={17} className="text-amber-400" /> : <Moon size={17} className="text-gray-400" />}
               {isDarkMode ? 'Modo Claro' : 'Modo Oscuro'}
             </span>
           </button>
@@ -271,37 +273,37 @@ export default function App() {
       <main className="flex-1 flex flex-col min-w-0 relative">
         
         {/* MOBILE HEADER */}
-        <header className="lg:hidden flex items-center justify-between bg-white dark:bg-[#28292A] border-b border-gray-200 dark:border-gray-800 p-4 shrink-0 z-10 transition-colors">
-          <h1 className="text-xl font-bold flex items-center gap-2 text-amber-600 dark:text-amber-500">
+        <header className="lg:hidden flex items-center justify-between bg-white dark:bg-[#202124] border-b border-gray-200 dark:border-gray-800 px-4 py-3 shrink-0 z-10 transition-colors">
+          <h1 className="text-lg font-black flex items-center gap-2 text-amber-600 dark:text-amber-500">
             <span>🎺</span> TNotes
           </h1>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <PwaInstallButton />
             <button 
               onClick={() => setIsBackupModalOpen(true)}
-              className="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-[#1F1F1F] rounded-full text-gray-700 dark:text-gray-300 transition active:scale-95 cursor-pointer"
+              className="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-[#2A2B2D] hover:bg-gray-200 rounded-full text-gray-700 dark:text-gray-300 transition active:scale-95 cursor-pointer"
               title="Copia de Seguridad (.tnotes)"
             >
-              <Download size={16} className="text-amber-500" />
+              <Download size={15} className="text-amber-500" />
             </button>
             <button 
               onClick={toggleNotation}
-              className="px-3 py-1.5 bg-gray-100 dark:bg-[#1F1F1F] rounded-full text-xs font-bold text-gray-700 dark:text-gray-300 transition active:scale-95 flex items-center gap-1.5 cursor-pointer"
+              className="px-2.5 py-1.5 bg-gray-100 dark:bg-[#2A2B2D] hover:bg-gray-200 rounded-full text-[11px] font-bold text-gray-700 dark:text-gray-300 transition active:scale-95 flex items-center gap-1 cursor-pointer"
             >
-              <Globe2 size={14} className="text-amber-500" />
+              <Globe2 size={13} className="text-amber-500" />
               {notation === 'en' ? 'EN' : 'Do-Re-Mi'}
             </button>
             <button 
               onClick={toggleDarkMode}
-              className="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-[#1F1F1F] rounded-full text-gray-700 dark:text-gray-300 transition active:scale-95 cursor-pointer"
+              className="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-[#2A2B2D] hover:bg-gray-200 rounded-full text-gray-700 dark:text-gray-300 transition active:scale-95 cursor-pointer"
             >
-              {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+              {isDarkMode ? <Sun size={15} className="text-amber-400" /> : <Moon size={15} />}
             </button>
           </div>
         </header>
 
-        {/* VIEWS */}
-        <div className="flex-1 overflow-y-auto no-scrollbar pb-24 lg:pb-8">
+        {/* VIEWS CONTAINER: Espaciado inferior generoso (pb-32 sm:pb-36) para no solaparse nunca con el dock */}
+        <div className="flex-1 overflow-y-auto no-scrollbar pb-32 sm:pb-36 lg:pb-10">
           {currentView === 'editor' && (
             <NoteEditorView 
               note={activeNote} 

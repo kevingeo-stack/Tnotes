@@ -3,8 +3,11 @@ import { SongNote } from '../../types/note';
 import { NoteStorageService } from '../../services/storage/NoteStorageService';
 import { KeyDetector } from '../../domain/music/KeyDetector';
 import { normalizeFlatsToSharps } from '../../domain/music/PitchClass';
+import { formatKeyName, NotationSystem } from '../../domain/music/NotationSystem';
+import { transposeKeyName } from '../../domain/music/TranspositionEngine';
 import { ConfirmModal } from '../common/ConfirmModal';
-import { Music, Trash2, Plus, ArrowLeft, Layers } from 'lucide-react';
+import { DualKeyBadge } from '../common/DualKeyBadge';
+import { Music, Trash2, Plus, ArrowLeft, Layers, Music2, ChevronRight } from 'lucide-react';
 
 interface TonalGroupingViewProps {
   notes?: SongNote[];
@@ -37,18 +40,62 @@ export const TonalGroupingView: React.FC<TonalGroupingViewProps> = ({
   const notationStyle: 'ENGLISH' | 'LATIN' = propNotationStyle ?? (notation === 'natural' ? 'LATIN' : 'ENGLISH');
   const onSelectSong = propOnSelectSong || onSelectNote || (() => {});
 
-  // 1. Agrupar canciones por la tonalidad activa
-  const groupedNotes = notes.reduce<Record<string, { primaryKey: string; secondaryKey: string; songs: SongNote[] }>>((acc, note) => {
+  // 1. Agrupar canciones por la tonalidad activa con coherencia total con las reglas musicales existentes
+  const groupedNotes = notes.reduce<Record<string, { trumpetKey: string; concertKey: string; primaryKey: string; secondaryKey: string; songs: SongNote[] }>>((acc, note) => {
     const keyInfo = KeyDetector.detectKey(note.content || '', notationStyle, note.activeInstrument || 'keyboard');
 
-    // Determinar tono primario y secundario según el instrumento activo
-    const primaryKey = activeInstrument === 'trumpet' ? keyInfo.trumpetKey : keyInfo.concertKey;
-    const secondaryKey = activeInstrument === 'trumpet' ? keyInfo.concertKey : keyInfo.trumpetKey;
+    let trumpetKey: string;
+    let concertKey: string;
 
+    const detectedTrumpet = keyInfo.trumpetKey;
+    const isDetectedValid = Boolean(
+      detectedTrumpet &&
+      detectedTrumpet !== 'Sin tono' &&
+      detectedTrumpet !== 'Indeterminada' &&
+      detectedTrumpet !== 'Desconocido'
+    );
+
+    if (isDetectedValid) {
+      trumpetKey = detectedTrumpet;
+      concertKey = keyInfo.concertKey;
+    } else {
+      const rawSavedKey = note.detectedKey;
+      const isSavedValid = Boolean(
+        rawSavedKey &&
+        rawSavedKey !== 'Sin tono' &&
+        rawSavedKey !== 'Indeterminada' &&
+        rawSavedKey !== 'Desconocido' &&
+        rawSavedKey !== 'Tono desconocido'
+      );
+
+      if (isSavedValid) {
+        const sys: NotationSystem = notationStyle === 'LATIN' ? 'natural' : 'en';
+        trumpetKey = formatKeyName(rawSavedKey, sys);
+        if (
+          note.concertKey &&
+          note.concertKey !== 'Sin tono' &&
+          note.concertKey !== 'Indeterminada' &&
+          note.concertKey !== 'Desconocido' &&
+          note.concertKey !== 'Tono desconocido'
+        ) {
+          concertKey = formatKeyName(note.concertKey, sys);
+        } else {
+          concertKey = formatKeyName(transposeKeyName(rawSavedKey, -2), sys);
+        }
+      } else {
+        trumpetKey = 'Sin tono';
+        concertKey = 'Sin tono';
+      }
+    }
+
+    const primaryKey = activeInstrument === 'trumpet' ? trumpetKey : concertKey;
+    const secondaryKey = activeInstrument === 'trumpet' ? concertKey : trumpetKey;
     const groupKey = primaryKey || 'Sin tono';
 
     if (!acc[groupKey]) {
       acc[groupKey] = {
+        trumpetKey,
+        concertKey,
         primaryKey: groupKey,
         secondaryKey: secondaryKey || 'Sin tono',
         songs: []
@@ -62,96 +109,117 @@ export const TonalGroupingView: React.FC<TonalGroupingViewProps> = ({
 
   const handleDeleteConfirm = () => {
     if (songToDelete) {
-      NoteStorageService.delete(songToDelete);
-      onDeleteNote?.(songToDelete);
+      if (onDeleteNote) {
+        onDeleteNote(songToDelete);
+      } else {
+        NoteStorageService.delete(songToDelete);
+        onRefreshNotes?.();
+      }
       setSongToDelete(null);
-      onRefreshNotes?.();
     }
   };
 
-  // VISTA ENFOCADA / DETALLE DE UNA TONALIDAD SELECCIONADA
+  // =========================================================================
+  // VISTA DE DETALLE DE TONALIDAD (ENFOCADA)
+  // =========================================================================
   if (selectedToneGroup && groupedNotes[selectedToneGroup]) {
     const currentGroup = groupedNotes[selectedToneGroup];
 
     return (
-      <div className="w-full max-w-5xl mx-auto p-3 md:p-6 pb-24 animate-fade-in">
-        {/* Botón Volver y Cabecera de Tonalidad */}
-        <div className="flex items-center justify-between mb-6">
+      <div className="w-full max-w-5xl mx-auto p-4 sm:p-6 pb-28 animate-in fade-in duration-150">
+        {/* Barra superior de navegación */}
+        <div className="flex items-center justify-between gap-3 mb-6">
           <button
             type="button"
             onClick={() => setSelectedToneGroup(null)}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 text-xs font-semibold transition-all active:scale-95 cursor-pointer"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white dark:bg-[#202124] hover:bg-gray-100 dark:hover:bg-[#2A2B2D] border border-gray-200 dark:border-gray-700/80 text-gray-700 dark:text-gray-200 text-xs sm:text-sm font-semibold transition-all shadow-xs active:scale-95 cursor-pointer"
           >
             <ArrowLeft size={16} />
-            <span>Volver a todas las tonalidades</span>
+            <span>Volver a Tonalidades</span>
           </button>
 
           {onCreateNewSong && (
             <button
               type="button"
               onClick={onCreateNewSong}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs shadow-md active:scale-95 transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs sm:text-sm shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer"
             >
-              <Plus size={16} />
+              <Plus size={16} strokeWidth={2.5} />
               <span>Nueva Canción</span>
             </button>
           )}
         </div>
 
-        {/* Encabezado Principal del Tono Seleccionado */}
-        <div className="bg-white dark:bg-[#1E1E1E] border border-neutral-200 dark:border-neutral-800 rounded-2xl p-5 mb-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+        {/* Banner Hero de Tonalidad al estilo Keep */}
+        <div className="bg-white dark:bg-[#202124] border border-gray-200 dark:border-gray-700/80 rounded-2xl p-5 sm:p-6 mb-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xl">
-                {activeInstrument === 'trumpet' ? '🎺' : '🎹'}
-              </span>
-              <h2 className="text-xl md:text-2xl font-black text-amber-600 dark:text-amber-400 tracking-wide uppercase">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-2xl">{activeInstrument === 'trumpet' ? '🎺' : '🎹'}</span>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 tracking-tight">
                 {currentGroup.primaryKey}
-              </h2>
+              </h1>
             </div>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400 flex items-center gap-1.5">
-              <span>Equivalencia en {activeInstrument === 'trumpet' ? 'Teclado' : 'Trompeta'}:</span>
-              <span className="font-bold text-neutral-700 dark:text-neutral-200">
-                {activeInstrument === 'trumpet' ? '🎹' : '🎺'} {currentGroup.secondaryKey}
-              </span>
-            </p>
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+              <span>Equivalencia instrumental:</span>
+              <DualKeyBadge
+                trumpetKey={currentGroup.trumpetKey}
+                concertKey={currentGroup.concertKey}
+                activeInstrument={activeInstrument}
+                size="sm"
+              />
+            </div>
           </div>
 
-          <span className="px-3 py-1 text-xs font-bold rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50">
-            {currentGroup.songs.length} {currentGroup.songs.length === 1 ? 'canción en este tono' : 'canciones en este tono'}
-          </span>
+          <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-900/40 px-3.5 py-1.5 rounded-full shrink-0">
+            <Music2 size={15} className="text-amber-600 dark:text-amber-400" />
+            <span className="text-xs font-bold text-amber-800 dark:text-amber-300">
+              {currentGroup.songs.length} {currentGroup.songs.length === 1 ? 'canción' : 'canciones'}
+            </span>
+          </div>
         </div>
 
-        {/* Lista Desplegada de Canciones de la Tonalidad */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-          {currentGroup.songs.map((song) => (
-            <div
-              key={song.id}
-              onClick={() => onSelectSong(song)}
-              className="p-4 rounded-2xl bg-white dark:bg-[#1E1E1E] hover:bg-neutral-50 dark:hover:bg-neutral-800/80 border border-neutral-200 dark:border-neutral-800 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between gap-3 group"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="font-bold text-sm md:text-base text-neutral-800 dark:text-neutral-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors line-clamp-1">
-                  {song.title || 'Canción sin título'}
-                </h3>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSongToDelete(song.id);
-                  }}
-                  className="p-1.5 text-neutral-400 hover:text-red-500 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors cursor-pointer"
-                  title="Eliminar canción"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </div>
+        {/* Cuadrícula de Canciones en la Tonalidad */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {currentGroup.songs.map((song) => {
+            const displayContent = activeInstrument === 'trumpet'
+              ? normalizeFlatsToSharps(song.content || '')
+              : (song.content || '');
 
-              <p className="font-mono text-xs leading-relaxed text-neutral-600 dark:text-neutral-300 line-clamp-4 whitespace-pre-wrap bg-neutral-50 dark:bg-neutral-900/50 p-3 rounded-xl border border-neutral-100 dark:border-neutral-800/50">
-                {(activeInstrument === 'trumpet' ? normalizeFlatsToSharps(song.content || '') : (song.content || '')) || 'Sin notas escritas...'}
-              </p>
-            </div>
-          ))}
+            return (
+              <div
+                key={song.id}
+                onClick={() => onSelectSong(song)}
+                className="group bg-white dark:bg-[#202124] hover:bg-gray-50/80 dark:hover:bg-[#28292A] border border-gray-200 dark:border-gray-700/80 hover:border-amber-400 dark:hover:border-amber-500/50 rounded-2xl p-4 sm:p-5 shadow-xs hover:shadow-md transition-all cursor-pointer flex flex-col justify-between gap-3 relative"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="font-extrabold text-base sm:text-lg text-gray-900 dark:text-gray-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors line-clamp-1 flex-1 pr-2">
+                    {song.title || 'Canción sin título'}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSongToDelete(song.id);
+                    }}
+                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors cursor-pointer shrink-0"
+                    title="Eliminar canción"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+
+                {/* Extracto musical con formato de partitura/cifrado */}
+                <div className="font-mono text-xs leading-relaxed text-gray-700 dark:text-gray-300 line-clamp-4 whitespace-pre-wrap bg-gray-50 dark:bg-[#1A1A1C] p-3 rounded-xl border border-gray-100 dark:border-gray-800/80">
+                  {displayContent || <span className="text-gray-400 dark:text-gray-500 italic">Sin notas escritas...</span>}
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-gray-400 dark:text-gray-500 pt-1">
+                  <span>Tocar para abrir en editor</span>
+                  <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform text-amber-500" />
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         <ConfirmModal
@@ -164,18 +232,20 @@ export const TonalGroupingView: React.FC<TonalGroupingViewProps> = ({
     );
   }
 
-  // VISTA GENERAL EN GRID (ESTILO GOOGLE KEEP)
+  // =========================================================================
+  // VISTA GENERAL EN CUADRÍCULA (ESTILO TARJETAS GOOGLE KEEP)
+  // =========================================================================
   return (
-    <div className="w-full max-w-5xl mx-auto p-3 md:p-6 pb-24">
-      {/* Encabezado Superior */}
-      <div className="flex items-center justify-between mb-5">
+    <div className="w-full max-w-6xl mx-auto p-4 sm:p-6 pb-28">
+      {/* Cabecera Principal */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
-          <h2 className="text-lg md:text-xl font-bold text-neutral-800 dark:text-neutral-100 flex items-center gap-2">
-            <Layers className="text-amber-500" size={20} />
-            <span>Tonalidades ({toneKeys.length})</span>
-          </h2>
-          <p className="text-xs text-neutral-500 dark:text-neutral-400">
-            Toca en cualquier recuadro para ver sus canciones
+          <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <Layers className="text-amber-500" size={22} />
+            <span>Biblioteca por Tonalidades</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+            Organización armónica automática para trompeta y teclado • {toneKeys.length} {toneKeys.length === 1 ? 'tonalidad' : 'tonalidades'} ({notes.length} canciones)
           </p>
         </div>
 
@@ -183,37 +253,40 @@ export const TonalGroupingView: React.FC<TonalGroupingViewProps> = ({
           <button
             type="button"
             onClick={onCreateNewSong}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs shadow-md active:scale-95 transition-all cursor-pointer"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs sm:text-sm shadow-sm hover:shadow-md active:scale-95 transition-all cursor-pointer shrink-0 self-start sm:self-auto"
           >
-            <Plus size={16} />
+            <Plus size={18} strokeWidth={2.5} />
             <span>Nueva Canción</span>
           </button>
         )}
       </div>
 
       {notes.length === 0 ? (
-        <div className="text-center py-16 bg-neutral-100 dark:bg-[#1E1E1E] rounded-2xl border border-dashed border-neutral-300 dark:border-neutral-800 p-6">
-          <Music className="mx-auto h-12 w-12 text-neutral-400 mb-3" />
-          <h3 className="text-base font-bold text-neutral-700 dark:text-neutral-200 mb-1">
-            Tu biblioteca está vacía
-          </h3>
-          <p className="text-xs text-neutral-500 mb-4 max-w-xs mx-auto">
-            Toca en "+ Nueva Canción" para agregar alabanzas y se agruparán automáticamente por tono.
+        /* Estado vacío limpio al estilo Keep */
+        <div className="text-center py-20 px-6 bg-white dark:bg-[#202124] rounded-3xl border border-dashed border-gray-300 dark:border-gray-700 max-w-md mx-auto shadow-xs">
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-4">
+            <Music size={32} />
+          </div>
+          <h2 className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-1">
+            Tu repertorio está vacío
+          </h2>
+          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-6">
+            Crea tu primera canción y se agrupará automáticamente por su tonalidad de trompeta y teclado.
           </p>
           {onCreateNewSong && (
             <button
               type="button"
               onClick={onCreateNewSong}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md transition active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm shadow-md transition active:scale-95 cursor-pointer"
             >
-              <Plus size={16} />
-              <span>+ Nueva Canción</span>
+              <Plus size={18} />
+              <span>Crear Canción</span>
             </button>
           )}
         </div>
       ) : (
-        /* GRID ESTILO GOOGLE KEEP PROFESIONAL */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 md:gap-4">
+        /* Cuadrícula Uniforme de Tarjetas: 2 Columnas en Móvil, Misma Altura en Todas las Tarjetas */
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-4">
           {toneKeys.map((toneGroupKey) => {
             const group = groupedNotes[toneGroupKey];
 
@@ -221,76 +294,81 @@ export const TonalGroupingView: React.FC<TonalGroupingViewProps> = ({
               <div
                 key={toneGroupKey}
                 onClick={() => setSelectedToneGroup(toneGroupKey)}
-                className="group bg-white dark:bg-[#1E1E1E] border border-neutral-200 dark:border-neutral-800/90 hover:border-amber-500/50 dark:hover:border-amber-500/50 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between"
+                className="group bg-white dark:bg-[#202124] border border-gray-200 dark:border-gray-700/80 hover:border-amber-400 dark:hover:border-amber-500/60 rounded-2xl p-3 sm:p-3.5 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between h-[210px] sm:h-[220px] overflow-hidden select-none"
               >
-                <div>
-                  {/* CABECERA DUAL DEL TONO (Trompeta al frente | Teclado al lado) */}
-                  <div className="pb-2.5 mb-3 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-black text-sm md:text-base text-amber-600 dark:text-amber-400 uppercase tracking-wide">
-                        {activeInstrument === 'trumpet' ? '🎺' : '🎹'} {group.primaryKey}
-                      </span>
-                      <span className="text-[11px] font-semibold text-neutral-400 dark:text-neutral-500">
-                        | {activeInstrument === 'trumpet' ? '🎹' : '🎺'} {group.secondaryKey}
-                      </span>
-                    </div>
+                {/* 1. Cabecera Fija de la Tarjeta Tonal con Insignia Dual y Contador */}
+                <div className="pb-2 mb-2 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between gap-1 shrink-0">
+                  <DualKeyBadge
+                    trumpetKey={group.trumpetKey}
+                    concertKey={group.concertKey}
+                    activeInstrument={activeInstrument}
+                    size="xs"
+                  />
 
-                    <span className="px-2 py-0.5 text-[10px] font-extrabold rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/40 shrink-0">
-                      {group.songs.length}
-                    </span>
-                  </div>
+                  <span className="px-1.5 py-0.5 text-[10px] sm:text-[11px] font-extrabold rounded-full bg-gray-100 dark:bg-[#2A2B2D] text-gray-600 dark:text-gray-300 shrink-0">
+                    {group.songs.length}
+                  </span>
+                </div>
 
-                  {/* BLOQUE INTERIOR CON LAS CANCIONES */}
-                  <div className="flex flex-col gap-2.5">
-                    {group.songs.slice(0, 4).map((song) => {
-                      const displayContent = activeInstrument === 'trumpet'
-                        ? normalizeFlatsToSharps(song.content || '')
-                        : (song.content || '');
-                      const previewLines = displayContent
-                        .split('\n')
-                        .filter((line) => line.trim().length > 0)
-                        .slice(0, 2)
-                        .join('\n');
+                {/* 2. Lista de Canciones: Espacio proporcional con extractos limpios */}
+                <div className="flex-1 flex flex-col gap-1.5 overflow-hidden justify-start">
+                  {group.songs.slice(0, 2).map((song) => {
+                    const displayContent = activeInstrument === 'trumpet'
+                      ? normalizeFlatsToSharps(song.content || '')
+                      : (song.content || '');
+                    const previewLines = displayContent
+                      .split('\n')
+                      .map(l => l.trim())
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .join(' • ');
 
-                      return (
-                        <div
-                          key={song.id}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectSong(song);
-                          }}
-                          className="p-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-900/50 hover:bg-neutral-100 dark:hover:bg-neutral-800/80 transition-colors border border-neutral-100 dark:border-neutral-800/50"
-                        >
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <h4 className="font-bold text-xs text-neutral-800 dark:text-neutral-100 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors line-clamp-1">
-                              {song.title || 'Canción sin título'}
-                            </h4>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSongToDelete(song.id);
-                              }}
-                              className="p-1 text-neutral-400 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
-                              title="Eliminar canción"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-
-                          <p className="font-mono text-[10px] leading-relaxed text-neutral-500 dark:text-neutral-400 line-clamp-2 whitespace-pre-wrap">
-                            {previewLines || 'Sin notas...'}
-                          </p>
+                    return (
+                      <div
+                        key={song.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectSong(song);
+                        }}
+                        className="p-2 rounded-xl bg-gray-50/90 dark:bg-[#28292A]/70 hover:bg-amber-50/60 dark:hover:bg-[#2E2F32] border border-gray-100 dark:border-gray-800/70 transition-colors group/item"
+                      >
+                        <div className="flex items-center justify-between gap-1 mb-0.5">
+                          <h3 className="font-bold text-xs sm:text-[13px] text-gray-800 dark:text-gray-100 group-hover/item:text-amber-600 dark:group-hover/item:text-amber-400 transition-colors truncate flex-1 pr-0.5">
+                            {song.title || 'Canción sin título'}
+                          </h3>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSongToDelete(song.id);
+                            }}
+                            className="p-1 text-gray-400 hover:text-red-500 rounded transition-colors cursor-pointer shrink-0"
+                            title="Eliminar canción"
+                          >
+                            <Trash2 size={12} />
+                          </button>
                         </div>
-                      );
-                    })}
 
-                    {group.songs.length > 4 && (
-                      <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 pt-1 text-center">
-                        + {group.songs.length - 4} canciones más...
-                      </p>
-                    )}
-                  </div>
+                        <p className="font-mono text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400 truncate">
+                          {previewLines || <span className="italic text-gray-400">Sin notas...</span>}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* 3. Pie de Tarjeta Uniforme con Indicador y Chevron */}
+                <div className="pt-1.5 border-t border-gray-100 dark:border-gray-800/60 shrink-0 flex items-center justify-between text-[10px] sm:text-[11px]">
+                  {group.songs.length > 2 ? (
+                    <span className="font-bold text-amber-600 dark:text-amber-400">
+                      + {group.songs.length - 2} {group.songs.length - 2 === 1 ? 'canción más' : 'canciones más'}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 dark:text-gray-500 font-medium text-[10px]">
+                      Ver tono completo
+                    </span>
+                  )}
+                  <ChevronRight size={13} className="text-gray-400 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-transform" />
                 </div>
               </div>
             );
