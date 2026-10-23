@@ -4,6 +4,7 @@ import { transposeText, TranspositionEngine } from '../../domain/music/Transposi
 import { KeyDetector, detectKey } from '../../domain/music/KeyDetector';
 import { formatKeyName, NotationSystem } from '../../domain/music/NotationSystem';
 import { NotationTranslator, NotationStyle } from '../../domain/music/NotationTranslator';
+import { normalizeFlatsToSharps } from '../../domain/music/PitchClass';
 import { KeyTransposeModal } from '../common/KeyTransposeModal';
 import { TranspositionSaveModal } from '../common/TranspositionSaveModal';
 import { SongNote } from '../../types/note';
@@ -14,9 +15,10 @@ interface NoteEditorViewProps {
   onNoteChange: (updated: SongNote) => void;
   onSaveAndExit: () => void;
   notation: NotationSystem;
+  onToggleNotation?: () => void;
 }
 
-export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: NoteEditorViewProps) {
+export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation, onToggleNotation }: NoteEditorViewProps) {
   const [activeInstrument, setActiveInstrument] = useState<'keyboard' | 'trumpet'>(note.activeInstrument || 'keyboard');
   const [content, setContent] = useState<string>(note.content || '');
   const [title, setTitle] = useState<string>(note.title || '');
@@ -34,13 +36,16 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [pendingTargetKey, setPendingTargetKey] = useState<string>('');
 
-  // Sync state when active note changes
+  // Sync state when active note changes (only on note.id change)
   useEffect(() => {
     const targetStyle: NotationStyle = notation === 'natural' ? 'LATIN' : 'ENGLISH';
     setNotationStyle(targetStyle);
     const inst = note.activeInstrument || 'keyboard';
     setActiveInstrument(inst);
-    const syncContent = NotationTranslator.translateFullContent(note.content || '', targetStyle);
+    let syncContent = NotationTranslator.translateFullContent(note.content || '', targetStyle);
+    if (inst === 'trumpet') {
+      syncContent = normalizeFlatsToSharps(syncContent);
+    }
     setContent(syncContent);
     const baseInst = note.baseInstrument || inst;
     const baseRaw = note.baseContent !== undefined ? note.baseContent : (note.content || '');
@@ -51,15 +56,18 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     });
     setTitle(note.title || '');
     setIsKeyboardMode(false);
-  }, [note.id, notation]);
+  }, [note.id]);
 
+  // Sincronizar traducción cuando cambia la preferencia global de notación
   useEffect(() => {
     const targetStyle: NotationStyle = notation === 'natural' ? 'LATIN' : 'ENGLISH';
     if (targetStyle !== notationStyle) {
       setNotationStyle(targetStyle);
       const translated = NotationTranslator.translateFullContent(content, targetStyle);
       const translatedBase = NotationTranslator.translateFullContent(baseReference.content, targetStyle);
-      updateStateAndStorage(title, translated, activeInstrument, translatedBase, baseReference.instrument);
+      setContent(translated);
+      setBaseReference({ content: translatedBase, instrument: baseReference.instrument });
+      updateStateAndStorage(title, translated, activeInstrument, translatedBase, baseReference.instrument, targetStyle);
     }
   }, [notation]);
 
@@ -72,13 +80,14 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
 
   // Detección tonal dual (Trompeta / Teclado)
   const dualKeyResult = useMemo(() => {
-    const res = KeyDetector.detectKey(content, notationStyle, activeInstrument);
+    const activeStyle: NotationStyle = notation === 'natural' ? 'LATIN' : 'ENGLISH';
+    const res = KeyDetector.detectKey(content, activeStyle, activeInstrument);
     if (res.trumpetKey && res.trumpetKey !== 'Sin tono') {
       return res;
     }
     if (note.detectedKey && note.detectedKey !== 'Sin tono' && note.detectedKey !== 'Tono desconocido' && note.detectedKey !== 'Desconocido') {
-      const trumpetK = note.detectedKey;
-      const concertK = note.concertKey || trumpetK;
+      const trumpetK = formatKeyName(note.detectedKey, notation);
+      const concertK = note.concertKey ? formatKeyName(note.concertKey, notation) : trumpetK;
       return {
         trumpetKey: trumpetK,
         concertKey: concertK,
@@ -94,17 +103,22 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
       };
     }
     return res;
-  }, [content, notationStyle, activeInstrument, note.detectedKey, note.concertKey]);
+  }, [content, notation, activeInstrument, note.detectedKey, note.concertKey]);
 
   const currentKey = activeInstrument === 'trumpet' ? dualKeyResult.trumpetKey : dualKeyResult.concertKey;
 
   const handleToggleNotation = () => {
-    const nextStyle = notationStyle === 'ENGLISH' ? 'LATIN' : 'ENGLISH';
-    setNotationStyle(nextStyle);
-    const translated = NotationTranslator.translateFullContent(content, nextStyle);
-    const translatedBase = NotationTranslator.translateFullContent(baseReference.content, nextStyle);
-    setContent(translated);
-    updateStateAndStorage(title, translated, activeInstrument, translatedBase, baseReference.instrument);
+    if (onToggleNotation) {
+      onToggleNotation();
+    } else {
+      const nextStyle = notationStyle === 'ENGLISH' ? 'LATIN' : 'ENGLISH';
+      setNotationStyle(nextStyle);
+      const translated = NotationTranslator.translateFullContent(content, nextStyle);
+      const translatedBase = NotationTranslator.translateFullContent(baseReference.content, nextStyle);
+      setContent(translated);
+      setBaseReference({ content: translatedBase, instrument: baseReference.instrument });
+      updateStateAndStorage(title, translated, activeInstrument, translatedBase, baseReference.instrument, nextStyle);
+    }
   };
 
   const handleSelectTargetKey = (targetKeyStr: string) => {
@@ -163,7 +177,8 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     newContent: string,
     newInstrument: 'keyboard' | 'trumpet',
     newBaseContent?: string,
-    newBaseInstrument?: 'keyboard' | 'trumpet'
+    newBaseInstrument?: 'keyboard' | 'trumpet',
+    explicitStyle?: NotationStyle
   ) => {
     setTitle(newTitle);
     setContent(newContent);
@@ -174,7 +189,8 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
 
     setBaseReference({ content: effectiveBaseContent, instrument: effectiveBaseInstrument });
 
-    const keyResult = KeyDetector.detectKey(newContent, notationStyle, newInstrument);
+    const activeStyle = explicitStyle || (notation === 'natural' ? 'LATIN' : 'ENGLISH');
+    const keyResult = KeyDetector.detectKey(newContent, activeStyle, newInstrument);
     const detectedKey = keyResult.trumpetKey;
     const concertKey = keyResult.concertKey;
 
@@ -204,8 +220,8 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    // When editing directly, text is taken as-is in the active instrument and becomes the base
-    const newText = e.target.value;
+    // When editing directly in trumpet, ensure any pasted flats are normalized to sharps
+    const newText = activeInstrument === 'trumpet' ? normalizeFlatsToSharps(e.target.value) : e.target.value;
     updateStateAndStorage(title, newText, activeInstrument, newText, activeInstrument);
   };
 
@@ -214,10 +230,12 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation }: 
     let nextContent: string;
     if (nextInstrument === baseReference.instrument) {
       // Regreso a la referencia original estable: 0 deriva acumulada
-      nextContent = baseReference.content;
+      nextContent = nextInstrument === 'trumpet'
+        ? normalizeFlatsToSharps(baseReference.content)
+        : baseReference.content;
     } else if (nextInstrument === 'trumpet') {
       // Base en teclado transpuesta a trompeta (+2 semitonos)
-      nextContent = transposeText(baseReference.content, 'KEYBOARD_TO_TRUMPET');
+      nextContent = normalizeFlatsToSharps(transposeText(baseReference.content, 'KEYBOARD_TO_TRUMPET'));
     } else {
       // Base en trompeta transpuesta a teclado (-2 semitonos)
       nextContent = transposeText(baseReference.content, 'TRUMPET_TO_KEYBOARD');

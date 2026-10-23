@@ -16,14 +16,14 @@ export const TunerModal: React.FC<TunerModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   const droneTones = [
-    { note: 'Bb3', freq: 233.08 },
+    { note: 'A#3', freq: 233.08 },
     { note: 'C4', freq: 261.63 },
     { note: 'D4', freq: 293.66 },
-    { note: 'Eb4', freq: 311.13 },
+    { note: 'D#4', freq: 311.13 },
     { note: 'F4', freq: 349.23 },
     { note: 'G4', freq: 392.00 },
     { note: 'A4', freq: 440.00 },
-    { note: 'Bb4', freq: 466.16 },
+    { note: 'A#4', freq: 466.16 },
   ];
 
   const handleToggleDrone = (item: { note: string; freq: number }) => {

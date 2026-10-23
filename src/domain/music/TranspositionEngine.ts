@@ -1,4 +1,6 @@
-import { NOTE_REGEX, normalizeToSharp, SharpPitch, PITCH_CLASSES } from './PitchClass';
+import { NOTE_REGEX, normalizeToSharp, SharpPitch, PITCH_CLASSES, normalizeFlatsToSharps, normalizeKeyName } from './PitchClass';
+
+export { normalizeFlatsToSharps, normalizeKeyName };
 
 function transpose(pitch: SharpPitch, semitones: number): SharpPitch {
     const currentIndex = PITCH_CLASSES.indexOf(pitch);
@@ -16,8 +18,9 @@ export function trumpetToKeyboard(pitch: SharpPitch): SharpPitch {
 
 export function transposeKeyName(keyName: string, semitones: number): string {
     if (!keyName || keyName === 'Indeterminada' || keyName === 'Sin tono' || keyName === 'Desconocido') return keyName || 'Sin tono';
-    const parts = keyName.split(' ');
-    if (parts.length !== 2) return keyName;
+    const normalizedKey = normalizeKeyName(keyName);
+    const parts = normalizedKey.split(' ');
+    if (parts.length !== 2) return normalizedKey;
     const root = parts[0];
     const mode = parts[1];
     
@@ -25,9 +28,9 @@ export function transposeKeyName(keyName: string, semitones: number): string {
     const currentIndex = PITCH_INDEX[upper];
     if (currentIndex === undefined) {
       const normalizedRoot = normalizeToSharp(root);
-      if (!normalizedRoot) return keyName;
+      if (!normalizedRoot) return normalizedKey;
       const idx = PITCH_CLASSES.indexOf(normalizedRoot);
-      if (idx === -1) return keyName;
+      if (idx === -1) return normalizedKey;
       const newIndex = (((idx + semitones) % 12) + 12) % 12;
       return `${PITCH_CLASSES[newIndex]} ${mode}`;
     }
@@ -60,15 +63,16 @@ export class TranspositionEngine {
   /**
    * Transpone un texto completo N semitonos arriba o abajo respetando comentarios,
    * solfeo latino, notación inglesa, alteraciones y octavas numéricas.
+   * La salida utiliza exclusivamente clases de altura naturales y sostenidas.
    */
   public static transposeBySemitones(text: string, semitones: number): string {
-    if (!text || semitones === 0) return text;
+    if (!text || semitones === 0) return normalizeFlatsToSharps(text);
 
     return text.split(/(\*[^*]*\*?)/g).map(part => {
       if (part.startsWith('*')) return part;
 
       return part.replace(
-        /(?<![a-zA-Z])(Do[#b♯♭]?|Re[#b♯♭]?|Mi[#b♯♭]?|Fa[#b♯♭]?|Sol[#b♯♭]?|La[#b♯♭]?|Si[#b♯♭]?|[A-G][#b♯♭]?)([0-9])?(?![a-zA-Z#b♯♭])/gi,
+        /(?<![a-zA-ZñáéíóúÁÉÍÓÚÑ])(Do[#b♯♭]?|Re[#b♯♭]?|Mi[#b♯♭]?|Fa[#b♯♭]?|Sol[#b♯♭]?|La[#b♯♭]?|Si[#b♯♭]?|[A-G][#b♯♭]?)([0-9])?(?![a-zA-ZñáéíóúÁÉÍÓÚÑ#b♯♭])/gi,
         (match, notePart, octavePart, offset, fullString) => {
           // Si es "La" seguido de palabra en minúscula que NO es nota ni modo (ej. "La canción", "La trompeta"), es artículo
           if (/^la$/i.test(notePart)) {

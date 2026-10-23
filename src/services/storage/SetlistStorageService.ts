@@ -91,12 +91,21 @@ export const deleteSetlist = (id: string): void => {
   }
 };
 
+export const saveAllSetlists = (setlists: Setlist[]): void => {
+  const storage = getStorage();
+  if (!storage) throw new Error("Storage not available");
+  const json = JSON.stringify(setlists);
+  storage.setItem('trumpet_setlists_data', json);
+  storage.setItem('trumpet_setlists_data_v1', json);
+};
+
 export const SetlistStorageService = {
   getAll: getAllSetlists,
   getById(id: string): Setlist | undefined {
     return getAllSetlists().find(s => s.id === id);
   },
   save: saveSetlist,
+  saveAll: saveAllSetlists,
   delete: deleteSetlist
 };
 

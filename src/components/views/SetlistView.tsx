@@ -17,21 +17,27 @@ import { SongNote, Setlist } from '../../types/note';
 import { NoteStorageService } from '../../services/storage/NoteStorageService';
 import { getAllSetlists, saveSetlist, deleteSetlist } from '../../services/storage/SetlistStorageService';
 import { KeyDetector } from '../../domain/music/KeyDetector';
-import { formatDualKeyDisplay, NotationSystem } from '../../domain/music/NotationSystem';
+import { formatDualKeyDisplay, formatKeyName, NotationSystem } from '../../domain/music/NotationSystem';
 import { transposeKeyName } from '../../domain/music/TranspositionEngine';
+import { normalizeFlatsToSharps, normalizeKeyName } from '../../domain/music/PitchClass';
 import { ConfirmModal } from '../common/ConfirmModal';
 
 interface SetlistViewProps {
   onOpenNoteInEditor?: (note: SongNote) => void;
   notation: NotationSystem;
   onActiveListChange?: (isInside: boolean) => void;
+  initialSetlistId?: string | null;
+  onSelectSetlist?: (id: string | null) => void;
 }
 
-export function renderFormattedMusicContent(rawContent: string) {
+export function renderFormattedMusicContent(rawContent: string, isTrumpet: boolean = true) {
   if (!rawContent) return <span>(Sin notas)</span>;
 
   // Segmentos delimitados por *...* se estilizan como anotaciones de guía
-  const parts = rawContent.split(/(\*[^*]*\*?)/g);
+  // Las notas visibles de trompeta se normalizan exclusivamente a naturales y sostenidos
+  // El teclado puede mostrar bemoles si son convenientes
+  const formatted = isTrumpet ? normalizeFlatsToSharps(rawContent) : rawContent;
+  const parts = formatted.split(/(\*[^*]*\*?)/g);
   return parts.map((part, index) => {
     if (part.startsWith('*')) {
       return (
@@ -47,9 +53,38 @@ export function renderFormattedMusicContent(rawContent: string) {
   });
 }
 
-export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }: SetlistViewProps) {
+/**
+ * Obtiene la tonalidad de la canción para la agrupación y visualización en atril
+ * garantizando coherencia absoluta con la biblioteca (Tonalidades).
+ */
+export function getKeyForSetlist(note: SongNote, notation?: NotationSystem): string {
+  const system: NotationSystem = notation || 'en';
+  if (note.detectedKey && note.detectedKey !== 'Sin tono' && note.detectedKey !== 'Indeterminada' && note.detectedKey !== 'Desconocido') {
+    return formatKeyName(note.detectedKey, system);
+  }
+  const notationStyle: 'ENGLISH' | 'LATIN' = system === 'natural' ? 'LATIN' : 'ENGLISH';
+  const detectedResult = KeyDetector.detectKey(note.content || '', notationStyle, note.activeInstrument || 'keyboard');
+  return detectedResult.trumpetKey !== 'Sin tono' 
+    ? detectedResult.trumpetKey 
+    : (note.concertKey ? formatKeyName(note.concertKey, system) : 'Sin tono');
+}
+
+export function SetlistView({
+  onOpenNoteInEditor,
+  notation,
+  onActiveListChange,
+  initialSetlistId,
+  onSelectSetlist
+}: SetlistViewProps) {
   // Navigation states: null = Estado 1 (Catálogo de Listas), string = Estado 2 (ID de Lista Seleccionada)
-  const [selectedSetlistId, setSelectedSetlistId] = useState<string | null>(null);
+  const [selectedSetlistId, setSelectedSetlistId] = useState<string | null>(initialSetlistId ?? null);
+
+  // Sync state if initialSetlistId updates
+  useEffect(() => {
+    if (initialSetlistId !== undefined) {
+      setSelectedSetlistId(initialSetlistId);
+    }
+  }, [initialSetlistId]);
 
   // Data states
   const [setlists, setSetlists] = useState<Setlist[]>([]);
@@ -66,10 +101,11 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
 
-  // Notify parent if inside an active setlist
+  // Notify parent if inside an active setlist and sync selected ID
   useEffect(() => {
     onActiveListChange?.(selectedSetlistId !== null);
-  }, [selectedSetlistId, onActiveListChange]);
+    onSelectSetlist?.(selectedSetlistId);
+  }, [selectedSetlistId, onActiveListChange, onSelectSetlist]);
 
   // Load data on mount
   useEffect(() => {
@@ -162,16 +198,6 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
     setSetlists(getAllSetlists());
   };
 
-  // Calculate concert key for any song note
-  const getConcertKeyForNote = (note: SongNote): string => {
-    if (note.concertKey && note.concertKey !== 'Sin tono' && note.concertKey !== 'Indeterminada' && note.concertKey !== 'Desconocido') {
-      return note.concertKey;
-    }
-    const notationStyle: 'ENGLISH' | 'LATIN' = notation === 'natural' ? 'LATIN' : 'ENGLISH';
-    const detectedResult = KeyDetector.detectKey(note.content || '', notationStyle, note.activeInstrument || 'keyboard');
-    return detectedResult.concertKey !== 'Sin tono' ? detectedResult.concertKey : (note.detectedKey || 'Sin tono');
-  };
-
   // Defensive validation of songs in active setlist
   const validSongs = useMemo(() => {
     if (!currentSetlist) return [];
@@ -188,7 +214,7 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
     const groupMap = new Map<string, { song: SongNote; overallIndex: number }[]>();
     
     validSongs.forEach((song, idx) => {
-      const key = getConcertKeyForNote(song);
+      const key = getKeyForSetlist(song, notation);
       if (!groupMap.has(key)) {
         groupMap.set(key, []);
       }
@@ -360,7 +386,7 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
                           </h3>
                           {song.activeInstrument === 'trumpet' ? (
                             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 shrink-0">
-                              🎺 Sib
+                              🎺 Trompeta
                             </span>
                           ) : (
                             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400 shrink-0">
@@ -393,7 +419,7 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
                       {/* NOTAS MUSICALES (Elemento Dominante de la Pantalla) */}
                       <div className="mt-1">
                         <div className="text-xl md:text-2xl font-mono font-bold tracking-wide leading-relaxed text-amber-600 dark:text-amber-400 whitespace-pre-wrap select-none break-words">
-                          {renderFormattedMusicContent(song.content)}
+                          {renderFormattedMusicContent(song.content, song.activeInstrument === 'trumpet')}
                         </div>
                       </div>
                     </div>
@@ -453,8 +479,8 @@ export function SetlistView({ onOpenNoteInEditor, notation, onActiveListChange }
                 ) : (
                   filteredLibraryNotes.map(note => {
                     const isSelected = currentSetlist.songIds.includes(note.id);
-                    const concertKey = getConcertKeyForNote(note);
-                    const formattedKey = formatDualKeyDisplay(concertKey, notation);
+                    const songKey = getKeyForSetlist(note, notation);
+                    const formattedKey = formatDualKeyDisplay(songKey, notation);
 
                     return (
                       <div

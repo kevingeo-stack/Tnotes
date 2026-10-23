@@ -18,9 +18,9 @@ export const ValvesView: React.FC = () => {
   };
 
   const chromaticScale = [
-    'F#3', 'G3', 'Ab3', 'A3', 'Bb3', 'B3',
-    'C4', 'C#4', 'D4', 'Eb4', 'E4', 'F4', 'F#4', 'G4', 'Ab4', 'A4', 'Bb4', 'B4',
-    'C5', 'C#5', 'D5', 'Eb5', 'E5', 'F5', 'F#5', 'G5', 'Ab5', 'A5', 'Bb5', 'B5',
+    'F#3', 'G3', 'G#3', 'A3', 'A#3', 'B3',
+    'C4', 'C#4', 'D4', 'D#4', 'E4', 'F4', 'F#4', 'G4', 'G#4', 'A4', 'A#4', 'B4',
+    'C5', 'C#5', 'D5', 'D#5', 'E5', 'F5', 'F#5', 'G5', 'G#5', 'A5', 'A#5', 'B5',
     'C6'
   ];
 
@@ -133,7 +133,7 @@ export const ValvesView: React.FC = () => {
       {/* Chromatic Range Selector Carousel */}
       <div className="bg-surface-container-lowest rounded-xl p-3 shadow-xs border border-[#e8ded3] mb-4">
         <span className="font-label-sm text-[11px] text-on-surface-variant font-bold uppercase tracking-wider block mb-2">
-          Select Pitch in Range (Bb Written)
+          Select Pitch in Range (Trumpet Written)
         </span>
         <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-1">
           {chromaticScale.map((n) => {
@@ -208,11 +208,11 @@ export const ValvesView: React.FC = () => {
 
         <div className="p-2.5 bg-surface-container-lowest rounded-lg border border-[#e8ded3] text-xs font-body-sm text-on-surface">
           <strong>Harmonic series on ({manualComboStr}): </strong>
-          {manualComboStr === '0' && 'C4, G4, C5, E5, G5, Bb5, C6 (Open Horn / 0)'}
+          {manualComboStr === '0' && 'C4, G4, C5, E5, G5, A#5, C6 (Open Horn / 0)'}
           {manualComboStr === '2' && 'B3, F#4, B4, D#5, F#5, A5, B5'}
-          {manualComboStr === '1' && 'Bb3, F4, Bb4, D5, F5, Ab5, Bb5'}
+          {manualComboStr === '1' && 'A#3, F4, A#4, D5, F5, G#5, A#5'}
           {manualComboStr === '1-2' && 'A3, E4, A4, C#5, E5, G5, A5'}
-          {manualComboStr === '2-3' && 'Ab3, Eb4, Ab4, C5, Eb5, Gb5, Ab5'}
+          {manualComboStr === '2-3' && 'G#3, D#4, G#4, C5, D#5, F#5, G#5'}
           {manualComboStr === '1-3' && 'G3, D4, G4, B4, D5, F5, G5'}
           {manualComboStr === '1-2-3' && 'F#3, C#4, F#4, A#4, C#5, E5, F#5 (Max tube extension)'}
         </div>

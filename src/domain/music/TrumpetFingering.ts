@@ -16,10 +16,10 @@ export class TrumpetFingering {
   };
 
   /**
-   * Returns fingering for a given pitch and octave (Bb written trumpet pitch)
+   * Returns fingering for a given pitch and octave (written trumpet pitch)
    */
   public static getFingering(pitchClass: number, octave: number = 4): TrumpetFingeringInfo {
-    // Pitch class: 0=C, 1=C#/Db, 2=D, 3=D#/Eb, 4=E, 5=F, 6=F#/Gb, 7=G, 8=G#/Ab, 9=A, 10=A#/Bb, 11=B
+    // Pitch class: 0=C, 1=C#, 2=D, 3=D#, 4=E, 5=F, 6=F#, 7=G, 8=G#, 9=A, 10=A#, 11=B
     if (octave <= 3) {
       switch (pitchClass) {
         case 6: // F#3
@@ -30,7 +30,7 @@ export class TrumpetFingering {
           return { valve1: false, valve2: true, valve3: true, label: '2-3' };
         case 9: // A3
           return { valve1: true, valve2: true, valve3: false, label: '1-2' };
-        case 10: // Bb3
+        case 10: // A#3
           return { valve1: true, valve2: false, valve3: false, label: '1' };
         case 11: // B3
           return { valve1: false, valve2: true, valve3: false, label: '2' };
@@ -47,7 +47,7 @@ export class TrumpetFingering {
           return { valve1: true, valve2: true, valve3: true, label: '1-2-3', slideAdjustment: 'Extend 3rd slide ~10mm' };
         case 2: // D4
           return { valve1: true, valve2: false, valve3: true, label: '1-3', slideAdjustment: 'Extend 3rd slide ~8mm' };
-        case 3: // Eb4
+        case 3: // D#4
           return { valve1: false, valve2: true, valve3: true, label: '2-3' };
         case 4: // E4
           return { valve1: true, valve2: true, valve3: false, label: '1-2' };
@@ -57,11 +57,11 @@ export class TrumpetFingering {
           return { valve1: false, valve2: true, valve3: false, label: '2' };
         case 7: // G4
           return { valve1: false, valve2: false, valve3: false, label: '0' };
-        case 8: // G#4 / Ab4
+        case 8: // G#4
           return { valve1: false, valve2: true, valve3: true, label: '2-3', alternate: '1 (6th partial)' };
         case 9: // A4
           return { valve1: true, valve2: true, valve3: false, label: '1-2', alternate: '3' };
-        case 10: // Bb4
+        case 10: // A#4
           return { valve1: true, valve2: false, valve3: false, label: '1' };
         case 11: // B4
           return { valve1: false, valve2: true, valve3: false, label: '2' };
@@ -78,7 +78,7 @@ export class TrumpetFingering {
           return { valve1: true, valve2: true, valve3: false, label: '1-2', alternate: '2' };
         case 2: // D5
           return { valve1: true, valve2: false, valve3: false, label: '1', alternate: '0' };
-        case 3: // Eb5
+        case 3: // D#5
           return { valve1: false, valve2: true, valve3: false, label: '2' };
         case 4: // E5
           return { valve1: false, valve2: false, valve3: false, label: '0', alternate: '1-2' };
@@ -92,7 +92,7 @@ export class TrumpetFingering {
           return { valve1: false, valve2: true, valve3: true, label: '2-3' };
         case 9: // A5
           return { valve1: true, valve2: true, valve3: false, label: '1-2', alternate: '1' };
-        case 10: // Bb5
+        case 10: // A#5
           return { valve1: true, valve2: false, valve3: false, label: '1' };
         case 11: // B5
           return { valve1: false, valve2: true, valve3: false, label: '2' };
@@ -109,7 +109,7 @@ export class TrumpetFingering {
         return { valve1: true, valve2: true, valve3: false, label: '1-2', alternate: '2' };
       case 2: // D6
         return { valve1: true, valve2: false, valve3: false, label: '1', alternate: '0' };
-      case 3: // Eb6
+      case 3: // D#6
         return { valve1: false, valve2: true, valve3: false, label: '2' };
       case 4: // E6
         return { valve1: false, valve2: false, valve3: false, label: '0' };

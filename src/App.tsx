@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, List, Music, Edit3, Moon, Sun, Globe2, ListMusic } from 'lucide-react';
+import { Plus, List, Music, Edit3, Moon, Sun, Globe2, ListMusic, Download } from 'lucide-react';
 import { ViewState, FabNavigation } from './components/navigation/FabNavigation';
 import { NoteEditorView } from './components/views/NoteEditorView';
 import { TonalGroupingView } from './components/views/TonalGroupingView';
 import { PitchSpaceView } from './components/views/PitchSpaceView';
 import { SetlistView } from './components/views/SetlistView';
 import { PwaInstallButton } from './components/common/PwaInstallButton';
+import { BackupModal } from './components/common/BackupModal';
 import { SongNote } from './types/note';
 import { NoteStorageService, sanitizeLegacyNotes, sanitizeEmptyNotes, translateAllNotesInStorage } from './services/storage/NoteStorageService';
 import { NotationSystem } from './domain/music/NotationSystem';
@@ -25,13 +26,25 @@ const createEmptyNote = (): SongNote => ({
   updatedAt: Date.now()
 });
 
+const VALID_RETURN_VIEWS: readonly ViewState[] = ['grouping', 'setlist', 'pitch-space'];
+
+export function resolveEditorReturnDestination(originView: ViewState | null | undefined): ViewState {
+  if (originView && VALID_RETURN_VIEWS.includes(originView)) {
+    return originView;
+  }
+  return 'grouping';
+}
+
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewState>('grouping');
+  const [editorReturnView, setEditorReturnView] = useState<ViewState>('grouping');
+  const [activeSetlistId, setActiveSetlistId] = useState<string | null>(null);
   const [activeNote, setActiveNote] = useState<SongNote>(createEmptyNote());
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [notation, setNotation] = useState<NotationSystem>('en');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [isInsideSetlist, setIsInsideSetlist] = useState(false);
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -49,10 +62,14 @@ export default function App() {
       }
       if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
         setIsDarkMode(true);
-        document.documentElement.classList.add('dark');
+        if (typeof document !== 'undefined' && document.documentElement) {
+          document.documentElement.classList.add('dark');
+        }
       } else {
         setIsDarkMode(false);
-        document.documentElement.classList.remove('dark');
+        if (typeof document !== 'undefined' && document.documentElement) {
+          document.documentElement.classList.remove('dark');
+        }
       }
     } catch (e) {
       console.warn('Theme initialization fallback', e);
@@ -74,10 +91,14 @@ export default function App() {
     setIsDarkMode(prev => {
       const next = !prev;
       if (next) {
-        document.documentElement.classList.add('dark');
+        if (typeof document !== 'undefined' && document.documentElement) {
+          document.documentElement.classList.add('dark');
+        }
         try { localStorage.setItem('theme', 'dark'); } catch {}
       } else {
-        document.documentElement.classList.remove('dark');
+        if (typeof document !== 'undefined' && document.documentElement) {
+          document.documentElement.classList.remove('dark');
+        }
         try { localStorage.setItem('theme', 'light'); } catch {}
       }
       return next;
@@ -114,16 +135,31 @@ export default function App() {
     });
   }, []);
 
-  const handleNewNote = useCallback(() => {
+  const handleNewNote = useCallback((origin?: ViewState) => {
     const fresh = createEmptyNote();
     setActiveNote(fresh);
+    const validOrigin = resolveEditorReturnDestination(
+      origin && origin !== 'editor' ? origin : (currentView !== 'editor' ? currentView : 'grouping')
+    );
+    setEditorReturnView(validOrigin);
     setCurrentView('editor');
-  }, []);
+  }, [currentView]);
 
-  const handleSelectNote = useCallback((note: SongNote) => {
+  const handleSelectNote = useCallback((note: SongNote, origin?: ViewState) => {
     setActiveNote(note);
+    const validOrigin = resolveEditorReturnDestination(
+      origin && origin !== 'editor' ? origin : (currentView !== 'editor' ? currentView : 'grouping')
+    );
+    setEditorReturnView(validOrigin);
     setCurrentView('editor');
-  }, []);
+  }, [currentView]);
+
+  const handleSaveAndExit = useCallback(() => {
+    setRefreshTrigger(v => v + 1);
+    const destination = resolveEditorReturnDestination(editorReturnView);
+    setEditorReturnView('grouping'); // Reset para que la próxima edición no herede accidentalmente el origen anterior
+    setCurrentView(destination);
+  }, [editorReturnView]);
 
   const handleDeleteNote = useCallback((id: string) => {
     NoteStorageService.delete(id);
@@ -142,6 +178,12 @@ export default function App() {
     return (
       <button 
         onClick={() => {
+          if (view === 'editor') {
+            setEditorReturnView('grouping');
+          }
+          if (view === 'setlist') {
+            setActiveSetlistId(null);
+          }
           setCurrentView(view);
           if (view === 'grouping' || view === 'setlist') setRefreshTrigger(v => v + 1);
         }}
@@ -171,7 +213,7 @@ export default function App() {
 
         <div className="px-4 py-4">
           <button 
-            onClick={handleNewNote}
+            onClick={() => handleNewNote(currentView !== 'editor' ? currentView : 'grouping')}
             className="flex items-center gap-3 bg-white dark:bg-[#1F1F1F] border border-gray-200 dark:border-gray-700 hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-800 transition px-6 py-4 rounded-2xl w-full text-lg font-bold text-gray-800 dark:text-gray-200 cursor-pointer"
           >
             <Plus size={24} className="text-amber-500" />
@@ -187,6 +229,19 @@ export default function App() {
         </nav>
 
         <div className="p-4 flex flex-col gap-2 border-t border-gray-200 dark:border-gray-800">
+          <button 
+            onClick={() => setIsBackupModalOpen(true)}
+            className="flex items-center justify-between px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-[#2A2B2D] transition text-sm font-semibold text-gray-700 dark:text-gray-300 cursor-pointer"
+          >
+            <span className="flex items-center gap-3">
+              <Download size={18} className="text-amber-500" />
+              Copia de Seguridad
+            </span>
+            <span className="bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded text-xs font-bold">
+              .tnotes
+            </span>
+          </button>
+
           <button 
             onClick={toggleNotation}
             className="flex items-center justify-between px-4 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-[#2A2B2D] transition text-sm font-semibold text-gray-700 dark:text-gray-300 cursor-pointer"
@@ -223,6 +278,13 @@ export default function App() {
           <div className="flex items-center gap-2">
             <PwaInstallButton />
             <button 
+              onClick={() => setIsBackupModalOpen(true)}
+              className="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-[#1F1F1F] rounded-full text-gray-700 dark:text-gray-300 transition active:scale-95 cursor-pointer"
+              title="Copia de Seguridad (.tnotes)"
+            >
+              <Download size={16} className="text-amber-500" />
+            </button>
+            <button 
               onClick={toggleNotation}
               className="px-3 py-1.5 bg-gray-100 dark:bg-[#1F1F1F] rounded-full text-xs font-bold text-gray-700 dark:text-gray-300 transition active:scale-95 flex items-center gap-1.5 cursor-pointer"
             >
@@ -244,19 +306,19 @@ export default function App() {
             <NoteEditorView 
               note={activeNote} 
               onNoteChange={handleNoteChange}
-              onSaveAndExit={() => {
-                setRefreshTrigger(v => v + 1);
-                setCurrentView('grouping');
-              }}
+              onSaveAndExit={handleSaveAndExit}
               notation={notation}
+              onToggleNotation={toggleNotation}
             />
           )}
           {currentView === 'setlist' && (
             <SetlistView 
               key={`setlist-${refreshTrigger}`}
-              onOpenNoteInEditor={handleSelectNote}
+              onOpenNoteInEditor={(note) => handleSelectNote(note, 'setlist')}
               notation={notation}
               onActiveListChange={setIsInsideSetlist}
+              initialSetlistId={activeSetlistId}
+              onSelectSetlist={setActiveSetlistId}
             />
           )}
           {currentView === 'grouping' && (
@@ -265,11 +327,11 @@ export default function App() {
               notes={NoteStorageService.getAll()}
               activeInstrument="trumpet"
               notationStyle={notation === 'natural' ? 'LATIN' : 'ENGLISH'}
-              onSelectSong={handleSelectNote}
-              onSelectNote={handleSelectNote} 
+              onSelectSong={(note) => handleSelectNote(note, 'grouping')}
+              onSelectNote={(note) => handleSelectNote(note, 'grouping')} 
               onDeleteNote={handleDeleteNote} 
               notation={notation} 
-              onCreateNewSong={handleNewNote}
+              onCreateNewSong={() => handleNewNote('grouping')}
               onRefreshNotes={() => setRefreshTrigger(v => v + 1)}
             />
           )}
@@ -277,6 +339,8 @@ export default function App() {
             <PitchSpaceView 
               activeNote={activeNote} 
               notation={notation} 
+              notes={NoteStorageService.getAll()}
+              onSelectNote={setActiveNote}
             />
           )}
         </div>
@@ -287,12 +351,18 @@ export default function App() {
             <FabNavigation 
               currentView={currentView}
               onViewChange={(view) => {
+                if (view === 'editor') {
+                  setEditorReturnView('grouping');
+                }
+                if (view === 'setlist') {
+                  setActiveSetlistId(null);
+                }
                 setCurrentView(view);
                 if (view === 'grouping' || view === 'setlist') {
                   setRefreshTrigger(v => v + 1);
                 }
               }}
-              onNewNote={handleNewNote}
+              onNewNote={() => handleNewNote(currentView)}
               isDarkMode={isDarkMode}
               toggleDarkMode={toggleDarkMode}
             />
@@ -300,6 +370,12 @@ export default function App() {
         )}
         
       </main>
+
+      <BackupModal
+        isOpen={isBackupModalOpen}
+        onClose={() => setIsBackupModalOpen(false)}
+        onDataRestored={() => setRefreshTrigger(v => v + 1)}
+      />
     </div>
   );
 }

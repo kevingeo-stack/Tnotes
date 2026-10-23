@@ -19,13 +19,13 @@ describe('NotationTranslator & Dual Key Detection Suite', () => {
       expect(translated).toBe('C D E# F *solo Do Re* G A B');
     });
 
-    it('handles sharps and flats correctly in both directions', () => {
+    it('handles sharps and flats correctly in both directions, converting flats to sharps', () => {
       const eng = 'C# Db D# Eb F# Gb G# Ab A# Bb';
       const lat = NotationTranslator.translateFullContent(eng, 'LATIN');
-      expect(lat).toBe('Do# Reb Re# Mib Fa# Solb Sol# Lab La# Sib');
+      expect(lat).toBe('Do# Do# Re# Re# Fa# Fa# Sol# Sol# La# La#');
 
       const backToEng = NotationTranslator.translateFullContent(lat, 'ENGLISH');
-      expect(backToEng).toBe('C# Db D# Eb F# Gb G# Ab A# Bb');
+      expect(backToEng).toBe('C# C# D# D# F# F# G# G# A# A#');
     });
 
     it('preserves empty or falsy strings', () => {

@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { transposeText, transposeKeyName } from '../TranspositionEngine';
 import { formatDualKeyDisplay } from '../NotationSystem';
+import { KeyDetector } from '../KeyDetector';
 import { NoteStorageService, getAllNotes, sanitizeLegacyNotes, sanitizeEmptyNotes } from '../../../services/storage/NoteStorageService';
 import { SetlistStorageService } from '../../../services/storage/SetlistStorageService';
+import { getKeyForSetlist } from '../../../components/views/SetlistView';
 import { SongNote, Setlist } from '../../../types/note';
 
 const store: Record<string, string> = {};
@@ -220,6 +222,122 @@ describe('Setlist & Persistent Transposition State', () => {
       insertNatural('E');
 
       expect(content.trim()).toBe('E E E# E');
+    });
+  });
+
+  describe('Setlist & Tonalidades Key Consistency', () => {
+    it('1. detecta correctamente Sol Si Re en notación latina (trompeta: Sol Mayor, concierto: Fa Mayor)', () => {
+      const keyResult = KeyDetector.detectKey('Sol Si Re', 'LATIN', 'trumpet');
+      expect(keyResult.trumpetKey).toBe('Sol Mayor');
+      expect(keyResult.concertKey).toBe('Fa Mayor');
+
+      const song: SongNote = {
+        id: 'test-latin-sol',
+        title: 'Prueba Sol Si Re',
+        content: 'Sol Si Re',
+        activeInstrument: 'trumpet',
+        detectedKey: keyResult.trumpetKey,
+        concertKey: keyResult.concertKey,
+        updatedAt: 1000
+      };
+
+      expect(getKeyForSetlist(song, 'natural')).toBe('Sol Mayor');
+      expect(formatDualKeyDisplay(getKeyForSetlist(song, 'natural'), 'natural')).toBe('Sol / Sol Mayor');
+    });
+
+    it('2. detecta la misma secuencia en notación inglesa G B D con correspondencia tonal exacta', () => {
+      const keyResult = KeyDetector.detectKey('G B D', 'ENGLISH', 'trumpet');
+      expect(keyResult.trumpetKey).toBe('G Mayor');
+      expect(keyResult.concertKey).toBe('F Mayor');
+
+      const song: SongNote = {
+        id: 'test-eng-g',
+        title: 'G B D Song',
+        content: 'G B D',
+        activeInstrument: 'trumpet',
+        detectedKey: keyResult.trumpetKey,
+        concertKey: keyResult.concertKey,
+        updatedAt: 1000
+      };
+
+      expect(getKeyForSetlist(song, 'en')).toBe('G Mayor');
+      expect(formatDualKeyDisplay(getKeyForSetlist(song, 'en'), 'en')).toBe('G / Sol Mayor');
+      expect(formatDualKeyDisplay(getKeyForSetlist(song, 'natural'), 'natural')).toBe('Sol / Sol Mayor');
+    });
+
+    it('3. garantiza que Tonalidades y Modo Lista presentan coherentemente la misma tonalidad (Sol mayor)', () => {
+      const song: SongNote = {
+        id: 'song-consistency',
+        title: 'Prueba Borrado Referencia',
+        content: 'Sol Si Re',
+        activeInstrument: 'trumpet',
+        detectedKey: 'Sol Mayor',
+        concertKey: 'Fa Mayor',
+        updatedAt: 1000
+      };
+
+      // 1. En Tonalidades (primaryKey en TonalGroupingView cuando activeInstrument='trumpet')
+      const tonalidadesResult = KeyDetector.detectKey(song.content, 'LATIN', song.activeInstrument);
+      const primaryKeyTonalidades = tonalidadesResult.trumpetKey; // 'Sol Mayor'
+
+      // 2. En Modo Lista (getKeyForSetlist en SetlistView)
+      const setlistKey = getKeyForSetlist(song, 'natural'); // 'Sol Mayor'
+
+      expect(primaryKeyTonalidades).toBe('Sol Mayor');
+      expect(setlistKey).toBe('Sol Mayor');
+      expect(primaryKeyTonalidades).toBe(setlistKey);
+    });
+
+    it('4. respeta la semántica del modelo: diferencia entre tonalidad escrita y de concierto en trompeta y teclado', () => {
+      // Caso Trompeta en Sib: toca Sol Mayor, suena en concierto Fa Mayor (-2 semitonos)
+      const trumpetSongResult = KeyDetector.detectKey('Sol Si Re', 'LATIN', 'trumpet');
+      expect(trumpetSongResult.trumpetKey).toBe('Sol Mayor');
+      expect(trumpetSongResult.concertKey).toBe('Fa Mayor');
+      expect(trumpetSongResult.trumpetKey).not.toBe(trumpetSongResult.concertKey);
+
+      // Caso Teclado (concierto): toca Fa Mayor (Fa La Do), la trompeta debe leer Sol Mayor (+2 semitonos)
+      const keyboardSongResult = KeyDetector.detectKey('Fa La Do', 'LATIN', 'keyboard');
+      expect(keyboardSongResult.concertKey).toBe('Fa Mayor');
+      expect(keyboardSongResult.trumpetKey).toBe('Sol Mayor');
+      expect(keyboardSongResult.trumpetKey).not.toBe(keyboardSongResult.concertKey);
+    });
+
+    it('5. no produce deriva acumulativa al alternar repetidamente entre teclado y trompeta', () => {
+      const baseContent = 'Sol Si Re';
+      const baseInstrument = 'trumpet';
+
+      let currentContent = baseContent;
+      let currentInst: 'keyboard' | 'trumpet' = baseInstrument;
+
+      // 6 ciclos de alternancia
+      for (let i = 0; i < 6; i++) {
+        const nextInst: 'keyboard' | 'trumpet' = currentInst === 'trumpet' ? 'keyboard' : 'trumpet';
+        if (nextInst === baseInstrument) {
+          currentContent = baseContent;
+        } else {
+          currentContent = transposeText(baseContent, 'TRUMPET_TO_KEYBOARD');
+        }
+        currentInst = nextInst;
+      }
+
+      expect(currentInst).toBe('trumpet');
+      expect(currentContent).toBe(baseContent);
+    });
+
+    it('6. resuelve adecuadamente la tonalidad para canciones antiguas con campos opcionales ausentes', () => {
+      const legacySong: SongNote = {
+        id: 'legacy-song-1',
+        title: 'Himno Antiguo',
+        content: 'Sol Si Re',
+        activeInstrument: 'trumpet',
+        detectedKey: '', // vacío en datos antiguos
+        // sin concertKey, sin baseContent, sin baseInstrument
+        updatedAt: 500
+      };
+
+      const resolvedKey = getKeyForSetlist(legacySong, 'natural');
+      expect(resolvedKey).toBe('Sol Mayor');
+      expect(formatDualKeyDisplay(resolvedKey, 'natural')).toBe('Sol / Sol Mayor');
     });
   });
 });

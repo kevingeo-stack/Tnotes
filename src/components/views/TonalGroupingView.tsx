@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { SongNote } from '../../types/note';
 import { NoteStorageService } from '../../services/storage/NoteStorageService';
 import { KeyDetector } from '../../domain/music/KeyDetector';
+import { normalizeFlatsToSharps } from '../../domain/music/PitchClass';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { Music, Trash2, Plus, ArrowLeft, Layers } from 'lucide-react';
 
@@ -147,7 +148,7 @@ export const TonalGroupingView: React.FC<TonalGroupingViewProps> = ({
               </div>
 
               <p className="font-mono text-xs leading-relaxed text-neutral-600 dark:text-neutral-300 line-clamp-4 whitespace-pre-wrap bg-neutral-50 dark:bg-neutral-900/50 p-3 rounded-xl border border-neutral-100 dark:border-neutral-800/50">
-                {song.content || 'Sin notas escritas...'}
+                {(activeInstrument === 'trumpet' ? normalizeFlatsToSharps(song.content || '') : (song.content || '')) || 'Sin notas escritas...'}
               </p>
             </div>
           ))}
@@ -242,7 +243,10 @@ export const TonalGroupingView: React.FC<TonalGroupingViewProps> = ({
                   {/* BLOQUE INTERIOR CON LAS CANCIONES */}
                   <div className="flex flex-col gap-2.5">
                     {group.songs.slice(0, 4).map((song) => {
-                      const previewLines = (song.content || '')
+                      const displayContent = activeInstrument === 'trumpet'
+                        ? normalizeFlatsToSharps(song.content || '')
+                        : (song.content || '');
+                      const previewLines = displayContent
                         .split('\n')
                         .filter((line) => line.trim().length > 0)
                         .slice(0, 2)

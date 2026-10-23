@@ -161,7 +161,7 @@ export const NoteEditorView: React.FC<NoteEditorViewProps> = ({
             }`}
           >
             {state.perspective === 'bb' && <span className="w-2 h-2 rounded-full bg-surface-bright" />}
-            <span>Trumpet (B♭)</span>
+            <span>Trumpet</span>
           </button>
           <button
             onClick={() => controller.setPerspective('c')}
@@ -228,7 +228,7 @@ export const NoteEditorView: React.FC<NoteEditorViewProps> = ({
                 </button>
               </div>
               <div className="grid grid-cols-3 gap-1.5 max-h-64 overflow-y-auto p-1">
-                {['C Major', 'G Major', 'D Major', 'A Major', 'E Major', 'F Major', 'Bb Major', 'Eb Major', 'Ab Major', 'A Minor', 'E Minor', 'D Minor', 'G Minor', 'C Minor'].map((k) => (
+                {['C Major', 'G Major', 'D Major', 'A Major', 'E Major', 'F Major', 'A# Major', 'D# Major', 'G# Major', 'A Minor', 'E Minor', 'D Minor', 'G Minor', 'C Minor'].map((k) => (
                   <button
                     key={k}
                     onClick={() => handleKeySelect(k)}
@@ -306,7 +306,7 @@ export const NoteEditorView: React.FC<NoteEditorViewProps> = ({
             <div className="flex items-center justify-between text-xs font-label-sm text-on-surface-variant">
               <span>
                 {state.perspective === 'bb'
-                  ? 'Written B♭ Horn Pitch'
+                  ? 'Written Trumpet Pitch'
                   : state.perspective === 'c'
                   ? 'Sounding Concert Pitch (-2 ST)'
                   : 'Dual View (Written ➔ Sounding)'}
@@ -422,16 +422,16 @@ export const NoteEditorView: React.FC<NoteEditorViewProps> = ({
               </span>
             </div>
             <span className="font-label-sm text-[11px] px-2 py-0.5 rounded bg-surface-container-lowest text-on-surface-variant font-medium">
-              B♭ Trumpet ➔ Concert (-2 ST)
+              Trumpet ➔ Concert (-2 ST)
             </span>
           </div>
 
           {/* Comparative Dual Stave Pitch Grid */}
           <div className="grid grid-cols-2 gap-2">
-            {/* B-Flat Trumpet (Written) */}
+            {/* Trumpet (Written) */}
             <div className="bg-surface-container-lowest p-3 rounded-lg flex flex-col gap-1.5 shadow-xs border border-[#e8ded3]">
               <span className="font-label-sm text-[10px] text-on-surface-variant font-bold tracking-wider">
-                WRITTEN (B♭ HORN)
+                WRITTEN (TRUMPET)
               </span>
               <div className="font-label-md text-xs text-on-surface flex flex-wrap gap-1">
                 {noteTokens.slice(0, 5).map((t, idx) => (
@@ -496,16 +496,6 @@ export const NoteEditorView: React.FC<NoteEditorViewProps> = ({
               title="Sharp"
             >
               ♯
-            </button>
-            <button
-              onClick={() => {
-                controller.insertToken('♭');
-                onShowToast('Inserted ♭');
-              }}
-              className="w-8 h-8 rounded bg-surface-container-lowest hover:bg-primary-container hover:text-on-primary text-on-surface flex items-center justify-center font-bold text-base transition-colors shadow-xs active:scale-90"
-              title="Flat"
-            >
-              ♭
             </button>
             <button
               onClick={() => {

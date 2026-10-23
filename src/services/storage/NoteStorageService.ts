@@ -1,6 +1,8 @@
 import { SongNote, SetlistItem } from '../../types/note';
 import { KeyDetector } from '../../domain/music/KeyDetector';
 import { NotationTranslator, NotationStyle } from '../../domain/music/NotationTranslator';
+import { normalizeKeyName } from '../../domain/music/PitchClass';
+import { getAllSetlists, saveAllSetlists } from './SetlistStorageService';
 
 export type { SetlistItem };
 
@@ -194,14 +196,16 @@ export const getAllNotes = (): SongNote[] => {
         return {
           ...note,
           activeInstrument: inst,
-          detectedKey: freshKey,
-          concertKey: keyResult.concertKey,
+          detectedKey: normalizeKeyName(freshKey),
+          concertKey: normalizeKeyName(keyResult.concertKey),
           baseContent: note.baseContent ?? note.content,
           baseInstrument: note.baseInstrument ?? inst
         };
       }
       return {
         ...note,
+        detectedKey: note.detectedKey ? normalizeKeyName(note.detectedKey) : 'Sin tono',
+        concertKey: note.concertKey ? normalizeKeyName(note.concertKey) : 'Sin tono',
         baseContent: note.baseContent ?? note.content,
         baseInstrument: note.baseInstrument ?? inst
       };
@@ -247,8 +251,8 @@ export const NoteStorageService = {
       const notationStyle: NotationStyle = savedNotation === 'natural' ? 'LATIN' : 'ENGLISH';
       const inst = note.activeInstrument || 'keyboard';
       const keyResult = KeyDetector.detectKey(note.content || '', notationStyle, inst);
-      const freshKey = keyResult.trumpetKey !== 'Sin tono' ? keyResult.trumpetKey : (note.detectedKey || 'Sin tono');
-      const concertKey = keyResult.concertKey !== 'Sin tono' ? keyResult.concertKey : (note.concertKey || 'Sin tono');
+      const freshKey = normalizeKeyName(keyResult.trumpetKey !== 'Sin tono' ? keyResult.trumpetKey : (note.detectedKey || 'Sin tono'));
+      const concertKey = normalizeKeyName(keyResult.concertKey !== 'Sin tono' ? keyResult.concertKey : (note.concertKey || 'Sin tono'));
 
       const noteToSave: SongNote = {
         ...note,
@@ -272,23 +276,74 @@ export const NoteStorageService = {
       storage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(notes));
     } catch (e) {
       console.warn("Storage write error on mobile device", e);
+      throw e;
     }
   },
 
+  saveAll(notes: SongNote[]): void {
+    const storage = getStorage();
+    if (!storage) throw new Error("Storage not available");
+    const json = JSON.stringify(notes);
+    storage.setItem(PRIMARY_STORAGE_KEY, json);
+    storage.setItem(LEGACY_STORAGE_KEY, json);
+  },
+
   delete(id: string): void {
+    const storage = getStorage();
+    if (!storage) return;
+
+    // Snapshot previo de todas las claves para garantizar atomicidad y reversión ante fallos
+    const prevNotesPrimary = storage.getItem(PRIMARY_STORAGE_KEY);
+    const prevNotesLegacy = storage.getItem(LEGACY_STORAGE_KEY);
+    const prevSetlistsPrimary = storage.getItem('trumpet_setlists_data');
+    const prevSetlistsLegacy = storage.getItem('trumpet_setlists_data_v1');
+    const prevLegacySetlist = storage.getItem(SETLIST_STORAGE_KEY);
+
     try {
-      const storage = getStorage();
-      if (!storage) return;
-
       const notes = this.getAll().filter(n => n.id !== id);
-      storage.setItem(PRIMARY_STORAGE_KEY, JSON.stringify(notes));
-      storage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(notes));
+      const notesJson = JSON.stringify(notes);
+      storage.setItem(PRIMARY_STORAGE_KEY, notesJson);
+      storage.setItem(LEGACY_STORAGE_KEY, notesJson);
 
-      // Also remove from legacy setlist if present
-      const currentSetlist = this.getSetlist().filter(item => item.noteId !== id);
-      this.saveSetlist(currentSetlist);
+      // Purgar referencias del ID en todas las listas activas que lo contengan
+      const currentSetlists = getAllSetlists();
+      let setlistsModified = false;
+      const updatedSetlists = currentSetlists.map(list => {
+        if (list.songIds && list.songIds.includes(id)) {
+          setlistsModified = true;
+          return {
+            ...list,
+            songIds: list.songIds.filter(sId => sId !== id)
+          };
+        }
+        return list;
+      });
+
+      if (setlistsModified) {
+        saveAllSetlists(updatedSetlists);
+      }
+
+      // Mantener compatibilidad eliminando del almacenamiento heredado de lista única
+      const currentLegacySetlist = this.getSetlist();
+      const updatedLegacySetlist = currentLegacySetlist.filter(item => item.noteId !== id);
+      if (updatedLegacySetlist.length !== currentLegacySetlist.length) {
+        this.saveSetlist(updatedLegacySetlist);
+      }
     } catch (e) {
       console.warn("Storage delete error on mobile device", e);
+      // Reversión atómica si ocurre un fallo en cualquiera de las escrituras
+      const restore = (key: string, val: string | null) => {
+        try {
+          if (val !== null) storage.setItem(key, val);
+          else storage.removeItem(key);
+        } catch {}
+      };
+      restore(PRIMARY_STORAGE_KEY, prevNotesPrimary);
+      restore(LEGACY_STORAGE_KEY, prevNotesLegacy);
+      restore('trumpet_setlists_data', prevSetlistsPrimary);
+      restore('trumpet_setlists_data_v1', prevSetlistsLegacy);
+      restore(SETLIST_STORAGE_KEY, prevLegacySetlist);
+      throw e;
     }
   },
 

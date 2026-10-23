@@ -1,24 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { normalizeFlatsToSharps, normalizeKeyName } from '../../domain/music/PitchClass';
 
 interface KeyTransposeModalProps {
   isOpen: boolean;
-  currentKey: string; // ej. "F# Mayor" o "A Menor"
+  currentKey: string; // ej. "F# Mayor" o "Re Menor"
   onConfirm: (targetKey: string) => void;
   onCancel: () => void;
 }
 
-const ALL_KEYS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const ALL_KEYS_ENG = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const ALL_KEYS_LAT = ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'];
 
-const normalizeRoot = (root: string): string => {
-  const map: Record<string, string> = {
-    'DO': 'C', 'DO#': 'C#', 'REB': 'C#', 'RE': 'D', 'RE#': 'D#', 'MIB': 'D#',
-    'MI': 'E', 'FA': 'F', 'FA#': 'F#', 'SOLB': 'F#', 'SOL': 'G', 'SOL#': 'G#',
-    'LAB': 'G#', 'LA': 'A', 'LA#': 'A#', 'SIB': 'A#', 'SI': 'B',
-    'DB': 'C#', 'EB': 'D#', 'GB': 'F#', 'AB': 'G#', 'BB': 'A#'
-  };
-  const upper = root.toUpperCase();
-  return map[upper] || root;
+const isLatinKey = (key: string): boolean => {
+  return /^(Do|Re|Mi|Fa|Sol|La|Si)/i.test(key.trim());
+};
+
+const normalizeRootByLanguage = (rawRoot: string, isLatin: boolean): string => {
+  const norm = normalizeFlatsToSharps(rawRoot);
+  if (isLatin) {
+    const latMap: Record<string, string> = {
+      'C': 'Do', 'C#': 'Do#', 'D': 'Re', 'D#': 'Re#', 'E': 'Mi',
+      'F': 'Fa', 'F#': 'Fa#', 'G': 'Sol', 'G#': 'Sol#', 'A': 'La', 'A#': 'La#', 'B': 'Si'
+    };
+    return latMap[norm] || norm;
+  } else {
+    const engMap: Record<string, string> = {
+      'Do': 'C', 'Do#': 'C#', 'Re': 'D', 'Re#': 'D#', 'Mi': 'E',
+      'Fa': 'F', 'Fa#': 'F#', 'Sol': 'G', 'Sol#': 'G#', 'La': 'A', 'La#': 'A#', 'Si': 'B'
+    };
+    return engMap[norm] || norm;
+  }
 };
 
 export const KeyTransposeModal: React.FC<KeyTransposeModalProps> = ({
@@ -29,14 +41,20 @@ export const KeyTransposeModal: React.FC<KeyTransposeModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const rawRoot = currentKey ? currentKey.split(' ')[0] : 'C';
-  const currentRoot = normalizeRoot(rawRoot);
-  const currentMode = currentKey && currentKey.includes('Menor') ? 'Menor' : 'Mayor';
+  const normalizedCurrent = normalizeKeyName(currentKey);
+  const isLatin = isLatinKey(normalizedCurrent);
+  const keysList = isLatin ? ALL_KEYS_LAT : ALL_KEYS_ENG;
+
+  const rawRoot = normalizedCurrent ? normalizedCurrent.split(' ')[0] : (isLatin ? 'Do' : 'C');
+  const currentRoot = normalizeRootByLanguage(rawRoot, isLatin);
+  const currentMode = normalizedCurrent && normalizedCurrent.includes('Menor') ? 'Menor' : 'Mayor';
   const [selectedRoot, setSelectedRoot] = useState(currentRoot);
 
   useEffect(() => {
-    const raw = currentKey ? currentKey.split(' ')[0] : 'C';
-    setSelectedRoot(normalizeRoot(raw));
+    const norm = normalizeKeyName(currentKey);
+    const lat = isLatinKey(norm);
+    const raw = norm ? norm.split(' ')[0] : (lat ? 'Do' : 'C');
+    setSelectedRoot(normalizeRootByLanguage(raw, lat));
   }, [currentKey, isOpen]);
 
   const handleApply = () => {
@@ -53,11 +71,11 @@ export const KeyTransposeModal: React.FC<KeyTransposeModalProps> = ({
         </h3>
 
         <p className="text-xs text-neutral-500 dark:text-neutral-400">
-          Tono actual: <span className="font-bold text-amber-600 dark:text-amber-400">{currentKey || 'Sin tono'}</span>
+          Tono actual: <span className="font-bold text-amber-600 dark:text-amber-400">{normalizedCurrent || 'Sin tono'}</span>
         </p>
 
         <div className="grid grid-cols-4 gap-2 my-1">
-          {ALL_KEYS.map(key => (
+          {keysList.map(key => (
             <button
               key={key}
               type="button"
