@@ -7,6 +7,7 @@ import { formatKeyName, NotationSystem } from '../../domain/music/NotationSystem
 import { transposeKeyName } from '../../domain/music/TranspositionEngine';
 import { ConfirmModal } from '../common/ConfirmModal';
 import { DualKeyBadge } from '../common/DualKeyBadge';
+import { useSwipeBack } from '../../hooks/useSwipeBack';
 import { Music, Trash2, Plus, ArrowLeft, Layers, Music2, ChevronRight } from 'lucide-react';
 
 interface TonalGroupingViewProps {
@@ -35,6 +36,12 @@ export const TonalGroupingView: React.FC<TonalGroupingViewProps> = ({
 }) => {
   const [songToDelete, setSongToDelete] = useState<string | null>(null);
   const [selectedToneGroup, setSelectedToneGroup] = useState<string | null>(null);
+
+  // Gesto táctil horizontal hacia la derecha para retroceder desde el detalle a la biblioteca
+  const detailContainerRef = useSwipeBack<HTMLDivElement>({
+    onSwipeBack: () => setSelectedToneGroup(null),
+    enabled: Boolean(selectedToneGroup),
+  });
 
   const notes = propNotes ?? NoteStorageService.getAll();
   const notationStyle: 'ENGLISH' | 'LATIN' = propNotationStyle ?? (notation === 'natural' ? 'LATIN' : 'ENGLISH');
@@ -126,7 +133,10 @@ export const TonalGroupingView: React.FC<TonalGroupingViewProps> = ({
     const currentGroup = groupedNotes[selectedToneGroup];
 
     return (
-      <div className="w-full max-w-5xl mx-auto p-4 sm:p-6 pb-28 animate-in fade-in duration-150">
+      <div 
+        ref={detailContainerRef}
+        className="w-full max-w-5xl mx-auto p-4 sm:p-6 pb-28 animate-in fade-in duration-150 select-none"
+      >
         {/* Barra superior de navegación */}
         <div className="flex items-center justify-between gap-3 mb-6">
           <button
@@ -138,16 +148,9 @@ export const TonalGroupingView: React.FC<TonalGroupingViewProps> = ({
             <span>Volver a Tonalidades</span>
           </button>
 
-          {onCreateNewSong && (
-            <button
-              type="button"
-              onClick={onCreateNewSong}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs sm:text-sm shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer"
-            >
-              <Plus size={16} strokeWidth={2.5} />
-              <span>Nueva Canción</span>
-            </button>
-          )}
+          <span className="text-[11px] text-gray-400 dark:text-gray-500 font-medium select-none">
+            Desliza a la derecha para volver
+          </span>
         </div>
 
         {/* Banner Hero de Tonalidad al estilo Keep */}
@@ -238,27 +241,14 @@ export const TonalGroupingView: React.FC<TonalGroupingViewProps> = ({
   return (
     <div className="w-full max-w-6xl mx-auto p-4 sm:p-6 pb-28">
       {/* Cabecera Principal */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-            <Layers className="text-amber-500" size={22} />
-            <span>Biblioteca por Tonalidades</span>
-          </h1>
-          <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-            Organización armónica automática para trompeta y teclado • {toneKeys.length} {toneKeys.length === 1 ? 'tonalidad' : 'tonalidades'} ({notes.length} canciones)
-          </p>
-        </div>
-
-        {onCreateNewSong && (
-          <button
-            type="button"
-            onClick={onCreateNewSong}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs sm:text-sm shadow-sm hover:shadow-md active:scale-95 transition-all cursor-pointer shrink-0 self-start sm:self-auto"
-          >
-            <Plus size={18} strokeWidth={2.5} />
-            <span>Nueva Canción</span>
-          </button>
-        )}
+      <div className="mb-6">
+        <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          <Layers className="text-amber-500" size={22} />
+          <span>Biblioteca por Tonalidades</span>
+        </h1>
+        <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+          Organización armónica automática para trompeta y teclado • {toneKeys.length} {toneKeys.length === 1 ? 'tonalidad' : 'tonalidades'} ({notes.length} canciones)
+        </p>
       </div>
 
       {notes.length === 0 ? (
@@ -294,18 +284,23 @@ export const TonalGroupingView: React.FC<TonalGroupingViewProps> = ({
               <div
                 key={toneGroupKey}
                 onClick={() => setSelectedToneGroup(toneGroupKey)}
-                className="group bg-white dark:bg-[#202124] border border-gray-200 dark:border-gray-700/80 hover:border-amber-400 dark:hover:border-amber-500/60 rounded-2xl p-3 sm:p-3.5 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between h-[210px] sm:h-[220px] overflow-hidden select-none"
+                className="group bg-white dark:bg-[#202124] border border-gray-200/90 dark:border-gray-800 hover:border-amber-400/80 dark:hover:border-amber-500/60 rounded-2xl p-3 sm:p-3.5 shadow-xs hover:shadow-sm transition-all duration-150 cursor-pointer flex flex-col justify-between h-[216px] sm:h-[224px] overflow-hidden select-none"
               >
                 {/* 1. Cabecera Fija de la Tarjeta Tonal con Insignia Dual y Contador */}
-                <div className="pb-2 mb-2 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between gap-1 shrink-0">
-                  <DualKeyBadge
-                    trumpetKey={group.trumpetKey}
-                    concertKey={group.concertKey}
-                    activeInstrument={activeInstrument}
-                    size="xs"
-                  />
+                <div className="pb-2 mb-2 border-b border-gray-100/90 dark:border-gray-800/80 flex items-center justify-between gap-1.5 shrink-0">
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <DualKeyBadge
+                      trumpetKey={group.trumpetKey}
+                      concertKey={group.concertKey}
+                      activeInstrument={activeInstrument}
+                      size="xs"
+                    />
+                  </div>
 
-                  <span className="px-1.5 py-0.5 text-[10px] sm:text-[11px] font-extrabold rounded-full bg-gray-100 dark:bg-[#2A2B2D] text-gray-600 dark:text-gray-300 shrink-0">
+                  <span 
+                    className="px-2 py-0.5 text-[10px] sm:text-[11px] font-bold rounded-full bg-gray-100/90 dark:bg-[#2A2B2D] text-gray-600 dark:text-gray-300 shrink-0 border border-gray-200/50 dark:border-gray-700/50"
+                    title={`${group.songs.length} ${group.songs.length === 1 ? 'canción' : 'canciones'}`}
+                  >
                     {group.songs.length}
                   </span>
                 </div>
@@ -330,10 +325,10 @@ export const TonalGroupingView: React.FC<TonalGroupingViewProps> = ({
                           e.stopPropagation();
                           onSelectSong(song);
                         }}
-                        className="p-2 rounded-xl bg-gray-50/90 dark:bg-[#28292A]/70 hover:bg-amber-50/60 dark:hover:bg-[#2E2F32] border border-gray-100 dark:border-gray-800/70 transition-colors group/item"
+                        className="p-2 rounded-xl bg-gray-50/80 dark:bg-[#28292A]/60 hover:bg-amber-50/70 dark:hover:bg-[#2E2F32] border border-gray-100/80 dark:border-gray-800/70 transition-colors group/item"
                       >
                         <div className="flex items-center justify-between gap-1 mb-0.5">
-                          <h3 className="font-bold text-xs sm:text-[13px] text-gray-800 dark:text-gray-100 group-hover/item:text-amber-600 dark:group-hover/item:text-amber-400 transition-colors truncate flex-1 pr-0.5">
+                          <h3 className="font-semibold text-xs sm:text-[13px] text-gray-800 dark:text-gray-100 group-hover/item:text-amber-600 dark:group-hover/item:text-amber-400 transition-colors truncate flex-1 pr-0.5">
                             {song.title || 'Canción sin título'}
                           </h3>
                           <button
@@ -342,7 +337,7 @@ export const TonalGroupingView: React.FC<TonalGroupingViewProps> = ({
                               e.stopPropagation();
                               setSongToDelete(song.id);
                             }}
-                            className="p-1 text-gray-400 hover:text-red-500 rounded transition-colors cursor-pointer shrink-0"
+                            className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md transition-colors cursor-pointer shrink-0"
                             title="Eliminar canción"
                           >
                             <Trash2 size={12} />
@@ -358,7 +353,7 @@ export const TonalGroupingView: React.FC<TonalGroupingViewProps> = ({
                 </div>
 
                 {/* 3. Pie de Tarjeta Uniforme con Indicador y Chevron */}
-                <div className="pt-1.5 border-t border-gray-100 dark:border-gray-800/60 shrink-0 flex items-center justify-between text-[10px] sm:text-[11px]">
+                <div className="pt-2 border-t border-gray-100/90 dark:border-gray-800/60 shrink-0 flex items-center justify-between text-[10px] sm:text-[11px]">
                   {group.songs.length > 2 ? (
                     <span className="font-bold text-amber-600 dark:text-amber-400">
                       + {group.songs.length - 2} {group.songs.length - 2 === 1 ? 'canción más' : 'canciones más'}

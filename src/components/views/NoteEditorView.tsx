@@ -9,6 +9,7 @@ import { KeyTransposeModal } from '../common/KeyTransposeModal';
 import { TranspositionSaveModal } from '../common/TranspositionSaveModal';
 import { SongNote } from '../../types/note';
 import { NoteStorageService } from '../../services/storage/NoteStorageService';
+import { useSwipeBack } from '../../hooks/useSwipeBack';
 
 interface NoteEditorViewProps {
   note: SongNote;
@@ -276,6 +277,12 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation, on
     onSaveAndExit();
   };
 
+  // Gesto táctil horizontal hacia la derecha para guardar y regresar a la vista de origen
+  const editorContainerRef = useSwipeBack<HTMLDivElement>({
+    onSwipeBack: handleSaveAndExit,
+    enabled: true,
+  });
+
   const dismissKeyboard = () => {
     if (isKeyboardMode) {
       if (textareaRef.current) textareaRef.current.blur();
@@ -427,7 +434,10 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation, on
   const quickAssistNotes = notationStyle === 'ENGLISH' ? baseNotesEn : baseNotesNat;
 
   return (
-    <div className="flex flex-col w-full max-w-4xl mx-auto h-full pt-4 px-4 sm:px-6 pb-48 sm:pb-52 animate-in fade-in duration-150">
+    <div 
+      ref={editorContainerRef}
+      className="flex flex-col w-full max-w-4xl mx-auto h-full pt-4 px-4 sm:px-6 pb-48 sm:pb-52 animate-in fade-in duration-150"
+    >
       
       {/* Cabecera Limpia al Estilo Google Keep */}
       <div className="flex flex-col gap-3.5 mb-5 border-b border-gray-100 dark:border-gray-800 pb-4">
@@ -536,7 +546,10 @@ export function NoteEditorView({ note, onNoteChange, onSaveAndExit, notation, on
       />
 
       {/* Barra Asistente Táctil de 2 Niveles (Estilo Piano Card Keep) */}
-      <div className="fixed sm:absolute bottom-3 sm:bottom-5 left-1/2 -translate-x-1/2 bg-white/95 dark:bg-[#202124]/95 backdrop-blur-md rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200/90 dark:border-gray-700/80 p-2 sm:p-2.5 flex flex-col gap-1.5 z-40 w-[96%] max-w-[620px]">
+      <div 
+        data-gesture-ignore="true"
+        className="fixed sm:absolute bottom-3 sm:bottom-5 left-1/2 -translate-x-1/2 bg-white/95 dark:bg-[#202124]/95 backdrop-blur-md rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200/90 dark:border-gray-700/80 p-2 sm:p-2.5 flex flex-col gap-1.5 z-40 w-[96%] max-w-[620px]"
+      >
         
         {/* FILA SUPERIOR: NOTAS NATURALES Y SOSTENIDO (#) */}
         <div className="flex items-center justify-between gap-1 sm:gap-1.5 w-full">

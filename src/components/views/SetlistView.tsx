@@ -19,6 +19,7 @@ import { KeyDetector } from '../../domain/music/KeyDetector';
 import { formatDualKeyDisplay, formatKeyName, NotationSystem } from '../../domain/music/NotationSystem';
 import { normalizeFlatsToSharps } from '../../domain/music/PitchClass';
 import { ConfirmModal } from '../common/ConfirmModal';
+import { useSwipeBack } from '../../hooks/useSwipeBack';
 
 interface SetlistViewProps {
   onOpenNoteInEditor?: (note: SongNote) => void;
@@ -75,6 +76,12 @@ export function SetlistView({
 }: SetlistViewProps) {
   // Navigation states: null = Estado 1 (Catálogo de Listas), string = Estado 2 (ID de Lista Seleccionada)
   const [selectedSetlistId, setSelectedSetlistId] = useState<string | null>(initialSetlistId ?? null);
+
+  // Gesto táctil horizontal hacia la derecha para volver al catálogo de listas
+  const setlistDetailRef = useSwipeBack<HTMLDivElement>({
+    onSwipeBack: () => setSelectedSetlistId(null),
+    enabled: Boolean(selectedSetlistId),
+  });
 
   // Sync state if initialSetlistId updates
   useEffect(() => {
@@ -248,7 +255,10 @@ export function SetlistView({
     const totalSongsInList = validSongs.length;
 
     return (
-      <div className="w-full mx-auto p-4 sm:p-6 pb-36 max-w-5xl animate-in fade-in duration-150">
+      <div 
+        ref={setlistDetailRef}
+        className="w-full mx-auto p-4 sm:p-6 pb-36 max-w-5xl animate-in fade-in duration-150"
+      >
         
         {/* Cabecera y Navegación del Atril */}
         <div className="flex flex-col gap-3.5 mb-6">
@@ -260,6 +270,10 @@ export function SetlistView({
               <ArrowLeft size={16} />
               <span>Volver a Listas</span>
             </button>
+
+            <span className="text-[11px] text-gray-400 dark:text-gray-500 font-medium hidden sm:inline select-none">
+              Desliza a la derecha para volver
+            </span>
 
             <div className="flex items-center gap-2">
               <button

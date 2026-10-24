@@ -19,9 +19,9 @@ export const DualKeyBadge: React.FC<DualKeyBadgeProps> = ({
 
   const sizeClasses = {
     xs: {
-      container: 'gap-1 text-[10px] sm:text-[11px] max-w-full',
-      badge: 'px-1.5 py-0.5 rounded-md truncate',
-      icon: 'text-[11px] sm:text-xs shrink-0',
+      container: 'gap-1 text-[10px] sm:text-[11px] max-w-full items-center',
+      badge: 'px-1.5 py-0.5 rounded-md truncate max-w-[80px] sm:max-w-[92px]',
+      icon: 'text-[10px] sm:text-xs shrink-0',
       text: 'font-bold truncate'
     },
     sm: {
